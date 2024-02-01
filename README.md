@@ -1,1 +1,1 @@
-This is based off of both java and c++
+This is a compiler for a new programming lang
