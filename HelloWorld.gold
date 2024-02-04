@@ -1,0 +1,5 @@
+class start
+function void main String[]\_args start
+sysout << "Hello\_world" ;
+end
+end
