@@ -133,7 +133,7 @@ class preprocessor:
                                             if t[7]=="e":
                                                 if t[8]==" ":
                                                     a=t.split(" ")
-                                                    b=open(a[1]+".jh")
+                                                    b=open(a[1]+".header")
                                                     arr[x]=b.read()
                                                     tm=arr[x]
                                                     arr[x]=tm[:-1]
