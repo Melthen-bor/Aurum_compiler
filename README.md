@@ -1,4 +1,4 @@
-This is a compiler and preprocessor for simple programming language
+This is a compiler and preprocessor for simple(depends on definition) programming language
 
 can compile to:
 * java
