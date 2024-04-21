@@ -1,5 +1,13 @@
+#start_def java
 class start
 function void main String[]\_args start
-sysout << "Hello\_world" ;
+sysout << "Hello,\_world" ;
 end
 end
+#end_def
+#start_def fortran
+sysout << "Hello,\_world" ;
+#end_def
+! undefine the one not being compiled to
+#if_def java
+#if_def fortran
