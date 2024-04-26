@@ -260,10 +260,6 @@ class compilerGold():
                     outstring+=tempstring
                     outstring+=" - 1"
             counter+=1
-        tlist=list(outstring)
-        tlist.pop()
-        tlist.pop()
-        outstring="".join(tlist)
         outfile.write(outstring)
         outfile.close()
         return 0
