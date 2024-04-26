@@ -2,6 +2,7 @@ This is a compiler and preprocessor for simple(depends on definition) programmin
 
 can compile to:
 * java
+* fortran
 
 [hello world programs](https://github.com/Melthen-bor/Gold/wiki/Hello-world)
 
