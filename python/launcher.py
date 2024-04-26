@@ -9,4 +9,7 @@ if d[1]=="-obj":
 elif d[1]=="-0":
     b.directives(a+" false")
 c=compiler.compilerGold()
-c.run(a)
+if d[2]=="-java":
+    c.run(a,"java")
+elif d[2]=="-fort":
+    c.run(a,"fortran")

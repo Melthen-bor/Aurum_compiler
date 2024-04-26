@@ -141,18 +141,38 @@ class preprocessor:
                                                     temp="\n".join(arr)
                                                     arr=temp.split("\n")
                                                     return arr
-                        #elif t[2]=="f":
-                            #if t[3]=="_":
-                                #if t[4]=="d":
-                                    #if t[5]=="e":
-                                        #if t[5]=="f":
-                                            #if t[6]==" ":
-                                                
+                        elif t[2]=="f":
+                            if t[3]=="_":
+                                if t[4]=="d":
+                                    if t[5]=="e":
+                                        if t[6]=="f":
+                                            if t[7]==" ":
+                                                y=0
+                                                a=t.split(" ")
+                                                while True:
+                                                    try:
+                                                        print("finding macro")
+                                                        tm=self.macros[y]
+                                                        if tm.check(a[1]):
+                                                            print("placing macro")
+                                                            arr[x]=tm.content
+                                                            temp="\n".join(arr)
+                                                            arr=temp.split("\n")
+                                                            self.macros.remove(y)
+                                                            return arr
+                                                        else:
+                                                            y+=1
+                                                    except:
+                                                        break
+                                                arr.remove(x)
+                                                temp="\n".join(arr)
+                                                arr=temp.split("\n")
+                elif t[0]=="!":
+                    arr.remove(x)
                 x+=1
             except:
                 a=open(name+".gold_com","w")
                 a.write("\n".join(arr))
-                #a.write(arr)
                 a.close()
                 print("wrote to file")
                 return 456

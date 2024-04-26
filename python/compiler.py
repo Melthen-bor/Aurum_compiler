@@ -61,7 +61,7 @@ class compilerGold():
                     self.strlist+=["SPACE_TOKEN_GOLD"]
                 case "return":
                     self.strlist+=["RETURN_TOKEN_GOLD"]
-                case "elif":
+                case "elf":
                     self.strlist+=["ELIF_TOKEN_GOLD"]
                 case "bool":
                     self.strlist+=["BOOL_TOKEN_GOLD"]
@@ -81,8 +81,6 @@ class compilerGold():
                     self.strlist+=["IMPORT_TOKEN_GOLD"]
                 case "create":
                     self.strlist+=["CREATE_TOKEN_GOLD"]
-                case "include":
-                    self.strlist+=["INCLUDE_TOKEN_GOLD"]
                 case "++":
                     self.strlist+=["INCREMENT_TOKEN_GOLD"]
                 case "--":
@@ -91,6 +89,14 @@ class compilerGold():
                     self.strlist+=["FALSE_TOKEN_GOLD"]
                 case "true":
                     self.strlist+=["TRUE_TOKEN_GOLD"]
+                case "str":
+                    self.strlist+=["STRING_TOKEN_GOLD"]
+                case "[!":
+                    self.strlist+=["BEGINCOMMENT_TOKEN_GOLD"]
+                case "!]":
+                    self.strlist+=["ENDCOMMENT_TOKEN_GOLD"]
+                case "program":
+                    self.strlist+=["PROGRAM_TOKEN_GOLD"]
                 case _:
                     self.strlist+=[strtemp]
             counter+=1
@@ -102,6 +108,165 @@ class compilerGold():
             ret+="  "
             counter+=1
         return ret
+    def compileCPP(self,file):
+        outfile=open(file,mode="w+")
+        count=self.conut
+        lists=self.strlist
+        counter=0
+        clist=file.split(".")
+        clist=clist[:-1]
+        cname=".".join(clist)
+        counter_o=0
+        counter_c=0
+        blocks=[]
+        outstring=""
+        #while counter<count:
+        #    
+    def compileFort(self,file):
+        outfile=open(file,mode="w+")
+        count=self.count
+        lists=self.strlist
+        tempstring=""
+        tempstr=""
+        counter=0
+        clist=file.split(".")
+        clist=clist[:-1]
+        cname=".".join(clist)
+        counter_o=0
+        counter_c=0
+        blocks=[]
+        streams=["","","","","","",""]
+        outstring=""
+        while counter<count:
+            tempstring=lists[counter]
+            if tempstring=="ENDBLOCK_TOKEN_GOLD":
+                counter_o-=1
+                tl=list(outstring)
+                tl.pop()
+                tl.pop()
+                outstring="".join(tl)
+                outstring+="end "
+                outstring+=blocks.pop()
+                outstring+="\n"
+                outstring+=self.indentGold(counter_o)
+            elif tempstring=="STARTBLOCK_TOKEN_GOLD":
+                counter_o+=1
+                outstring+="\n"
+                outstring+=self.indentGold(counter_o)
+            elif tempstring=="ENDSTATEMENT_TOKEN_GOLD":
+                outstring+="\n"
+                outstring+=self.indentGold(counter_o)
+            elif tempstring=="SYSTEMOUT_TOKEN_GOLD":
+                counter+=1
+                tempstring=lists[counter]
+                if tempstring=="OUTSTREAM_TOKEN_GOLD":
+                    counter+=1
+                    tempstring=lists[counter]
+                    tlist=tempstring.split("\_")
+                    tempstring=" ".join(tlist)
+                    tlist=tempstring.split("\~")
+                    tempstring="".join(tlist)
+                    outstring+="write(*,*) "
+                    outstring+=tempstring
+                else:
+                    outfile.close()
+                    return 1
+            elif tempstring=="SYSTEMIN_TOKEN_GOLD":
+                counter+=1
+                tempstring=lists[counter]
+                if tempstring=="INSTREAM_TOKEN_GOLD":
+                    counter+=1
+                    tempstring=lists[counter]
+                    tlist=tempstring.split("\_")
+                    tempstring=" ".join(tlist)
+                    tlist=tempstring.split("\~")
+                    tempstring="".join(tlist)
+                    outstring+="read(*,*) "
+                    outstring+=tempstring
+                else:
+                    outfile.close()
+                    return 1
+            elif tempstring=="INITIO_TOKEN_GOLD":
+                counter+=1
+            elif tempstring=="CLASS_TOKEN_GOLD":
+                outstring+="type::"
+                outstring+=cname
+                outstring+="_"
+                outstring+=str(counter_c)
+                counter_c+=1
+                blocks+=["type"]
+            elif tempstring=="FUNCTION_TOKEN_GOLD":
+                counter+=1
+                tempstring=lists[counter]
+                outstring+="function "
+                outstring+=tempstring
+                counter+=1
+                tempstring=lists[counter]
+                outstring+="("
+                outstring+=tempstring
+                outstring+=")"
+                blocks+=["function"]
+            elif tempstring=="INT_TOKEN_GOLD":
+                counter+=1
+                tempstring=lists[counter]
+                outstring+="integer::"
+                outstring+=tempstring
+            elif tempstring=="IF_TOKEN_GOLD":
+                counter+=1
+                tempstring=lists[counter]
+                outstring+="if ("
+                outstring+=tempstring
+                outstring+=") then"
+                blocks+=["if"]
+            elif tempstring=="WHILE_TOKEN_GOLD":
+                counter+=1
+                tempstring=lists[counter]
+                outstring+="do while ("
+                outstring+=tempstring
+                outstring+= ")"
+                blocks+=["do"]
+            elif tempstring=="BEGINCOMMENT_TOKEN_GOLD":
+                while 1==1:
+                    counter+=1
+                    tempstring=lists[counter]
+                    if tempstring=="ENDCOMMENT_TOKEN_GOLD":
+                        break
+            elif tempstring=="PROGRAM_TOKEN_GOLD":
+                tempstring="program "
+                tempstring+=cname
+                outstring+=tempstring
+                blocks+=[tempstring]
+            else:
+                count=counter+1
+                ts=list[count]
+                if ts=="ADDASI_TOKEN_GOLD":
+                    counter+=2
+                    outstring+=tempstring
+                    outstring+=" = "
+                    outstring+=tempstring
+                    outstring+=" + "
+                    tempstring=list[counter]
+                    outstring+=tempstring
+                elif ts=="INCREMENT_TOKEN_GOLD":
+                    counter+=1
+                    outstring+=tempstring
+                    outstring+=" = "
+                    outstring+=tempstring
+                    outstring+=" + 1"
+                elif ts=="DECREMENT_TOKEN_GOLD":
+                    counter+=1
+                    outstring+=tempstring
+                    outstring+=" = "
+                    outstring+=tempstring
+                    outstring+=" - 1"
+            counter+=1
+        tlist=list(outstring)
+        tlist.pop()
+        tlist.pop()
+        outstring="".join(tlist)
+        outfile.write(outstring)
+        outfile.close()
+        return 0
     def compileJava(self,file):
         outfile=open(file,mode="w+")
         count=self.count
@@ -114,6 +279,7 @@ class compilerGold():
         clist=file.split(".")
         clist=clist[:-1]
         cname=".".join(clist)
+        blocks=[]
         while counter<count:
             tempstring=lists[counter]
             if tempstring=="STARTBLOCK_TOKEN_GOLD":
@@ -128,6 +294,15 @@ class compilerGold():
                 outstring="".join(tl)
                 outstring+="}\n"
                 outstring+=self.indentGold(counter_o)
+                temp=blocks.pop()
+                if temp=="program":
+                    counter_o-=1
+                    tl=list(outstring)
+                    tl.pop()
+                    tl.pop()
+                    outstring="".join(tl)
+                    outstring+="}\n"
+                    outstring+=self.indentGold(counter_o)
             elif tempstring=="ENDSTATEMENT_TOKEN_GOLD":
                 outstring+=";\n"
                 outstring+=self.indentGold(counter_o)
@@ -161,6 +336,7 @@ class compilerGold():
             elif tempstring=="CLASS_TOKEN_GOLD":
                 outstring+="public class "
                 outstring+=cname
+                blocks+=["class"]
             elif tempstring=="FUNCTION_TOKEN_GOLD":
                 counter+=1
                 tempstr=lists[counter]
@@ -170,9 +346,16 @@ class compilerGold():
                 tstr=lists[counter]
                 counter+=1
                 tempstrt=lists[counter]
+                blocks+=["function"]
                 if tempstrt=="NONE_TOKEN_GOLD":
                     tempstrt=""
                 else:
+                    tlist=tempstrt.split("int")
+                    tempstrt="int".join(tlist)
+                    tlist=tempstrt.split("bool")
+                    tempstrt="boolean".join(tlist)
+                    tlist=tempstrt.split("str")
+                    tempstrt="String".join(tlist)
                     tlist=tempstrt.split("\_")
                     tempstrt=" ".join(tlist)
                     tlist=tempstrt.split("\~")
@@ -215,6 +398,7 @@ class compilerGold():
                 outstring+="if("
                 outstring+=tempstring
                 outstring+=")"
+                blocks+=["if"]
             elif tempstring=="ELIF_TOKEN_GOLD":
                 outstring=outstring[:-2]
                 counter_o-=1
@@ -280,6 +464,11 @@ class compilerGold():
                 tempstring=lists[counter]
                 outstring+="int "
                 outstring+=tempstring
+            elif tempstring=="STRING_TOKEN_GOLD":
+                counter+=1
+                tempstring=lists[counter]
+                outstring+="String "
+                outstring+=tempstring
             elif tempstring=="ASSIGNMENT_TOKEN_GOLD":
                 outstring+="="
             elif tempstring=="WHILE_TOKEN_GOLD":
@@ -288,8 +477,10 @@ class compilerGold():
                 outstring+="while("
                 outstring+=tempstring
                 outstring+=")"
+                blocks+=["while"]
             elif tempstring=="TRY_TOKEN_GOLD":
                 outstring+="try"
+                blocks+=["try"]
             elif tempstring=="EXCEPT_TOKEN_GOLD":
                 counter+=1
                 tempstring=lists[counter]
@@ -321,13 +512,9 @@ class compilerGold():
                 outstring+="("
                 outstring+=tempstring
                 outstring+=")"
+                ends+=["constructor"]
             elif tempstring=="MEMBER_TOKEN_GOLD":
                 outstring+="private static "
-            elif tempstring=="IMPORT_TOKEN_GOLD":
-                counter+=1
-                tempstring=lists[counter]
-                outstring+="import java."
-                outstring+=tempstring
             elif tempstring=="CREATE_TOKEN_GOLD":
                 counter+=1
                 tempstring=lists[counter]
@@ -348,7 +535,7 @@ class compilerGold():
                 outstring+="("
                 outstring+=tstrt
                 outstring+=")"
-            elif tempstring=="INCLUDE_TOKEN_GOLD":
+            elif tempstring=="IMPORT_TOKEN_GOLD":
                 counter+=1
                 tempstring=lists[counter]
                 outstring+="import "
@@ -361,6 +548,20 @@ class compilerGold():
                 outstring+="true"
             elif tempstring=="FALSE_TOKEN_GOLD":
                 outstring+="false"
+            elif tempstring=="BEGINCOMMENT_TOKEN_GOLD":
+                while 1==1:
+                    counter+=1
+                    tempstring=lists[counter]
+                    if tempstring=="ENDCOMMENT_TOKEN_GOLD":
+                        break
+            elif tempstring=="PROGRAM_TOKEN_GOLD":
+                outstring+="public class "
+                outstring+=cname
+                outstring+="{\n"
+                counter_o+=1
+                outstring+=self.indentGold(counter_o)
+                outstring+="public void main(String[] args)"
+                blocks+=["program"]
             else:
                 tlist=tempstring.split("\_")
                 tempstring=" ".join(tlist)
@@ -371,12 +572,24 @@ class compilerGold():
         outfile.write(outstring)
         outfile.close()
         return 0
-    def run(self,file):
+    def run(self,file,lang):
         infile=file+".gold_com"
-        outfile=file+".java"
         self.tokenizeGold(infile)
-        error=self.compileJava(outfile)
+        if lang=="java":
+            outfile=file+".java"
+            error=self.compileJava(outfile)
+        elif lang=="fortran":
+            outfile=file+".f90"
+            error=self.compileFort(outfile)
+        elif lang=="c++":
+            outfile=file+".cpp"
+            error=self.compileCPP(outfile)
+        if error==0:
+            print("compiled properly")
+        elif error==1:
+            print("stream error")
 if __name__=="__main__":
     comp=compilerGold()
     a=input()
-    comp.run(a)
+    b=input()
+    comp.run(a,b)
