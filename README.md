@@ -7,6 +7,6 @@ can compile to:
 
 [hello world programs](https://github.com/Melthen-bor/Gold/wiki/Hello-world)
 
-[compilation]
+[compilation guide](https://github.com/Melthen-bor/Gold/wiki/compiler-tags)
 
 if you want to use the preprocessor than it has to be muiltiple lines.
