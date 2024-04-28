@@ -3,8 +3,10 @@ This is a compiler and preprocessor for simple(depends on definition) programmin
 can compile to:
 * java(a little behind on implementation)
 * fortran(not finished)
-* c++(not behind)
+* c++(.h/.cpp)
 
 [hello world programs](https://github.com/Melthen-bor/Gold/wiki/Hello-world)
+
+[compilation]
 
 if you want to use the preprocessor than it has to be muiltiple lines.
