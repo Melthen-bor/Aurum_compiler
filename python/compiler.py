@@ -101,8 +101,6 @@ class compilerGold():
                     self.strlist+=["CONTAINS_TOKEN_GOLD"]
                 case "&*":
                     self.strlist+=["POINTER_TOKEN_GOLD"]
-                case "access":
-                    self.strlist+=["GETATTRIBUTE_TOKEN_GOLD"]
                 case "&>":
                     self.strlist+=["GETATTRIBUTE_TOKEN_GOLD"]
                 case "->":
@@ -125,6 +123,10 @@ class compilerGold():
                     self.strlist+=["HEAP_TO_STACK_TOKEN_GOLD_COMPILER"]
                 case "decons":
                     self.strlist+=["DECONSTRUCTOR_TOKEN_GOLD"]
+                case "&!":
+                    self.strlist+=["NOT_TOKEN_GOLD"]
+                case "access":
+                    self.strlist+=["ACCESS_TOKEN_GOLD"]
                 case _:
                     self.strlist+=[strtemp]
             counter+=1
@@ -229,6 +231,10 @@ class compilerGold():
                     counter_o-=1
                     outstring+=self.indentGold(counter_o)
                 elif tempstring=="function":
+                    tl=list(outstring)
+                    tl.pop()
+                    tl.pop()
+                    outstring="".join(tl)
                     counter_o-=1
                     outstring+="}\n"
                     outstring+=self.indentGold(counter_o)
@@ -263,9 +269,16 @@ class compilerGold():
             elif tempstring=="IF_TOKEN_GOLD":
                 counter+=1
                 tempstring=lists[counter]
+                tlist=tempstring.split("&>")
+                tempstring="this->".join(tlist)
+                tlist=tempstring.split("&!")
+                tempstring="!".join(tlist)
+                tlist=tempstring.split("&*")
+                tempstring="*".join(tlist)
                 outstring+="if("
                 outstring+=tempstring
                 outstring+=")"
+                blocks+=["if"]
             elif tempstring=="SYSTEMOUT_TOKEN_GOLD":
                 counter+=1
                 tempstring=lists[counter]
@@ -297,6 +310,7 @@ class compilerGold():
             elif tempstring=="CLASS_TOKEN_GOLD":
                 outstring+="class "
                 outstring+=cname
+                blocks+=["class"]
             elif tempstring=="FUNCTION_TOKEN_GOLD":
                 counter+=1
                 tempstring=lists[counter]
@@ -321,10 +335,13 @@ class compilerGold():
                 outstring+="("
                 counter+=1
                 tempstring=lists[counter]
-                tlist=tempstring.split("\_")
-                tempstring=" ".join(tlist)
-                tlist=tempstring.split("\~")
-                tempstring="".join(tlist)
+                if tempstring=="NONE_TOKEN_GOLD":
+                    tempstring=""
+                else:
+                    tlist=tempstring.split("\_")
+                    tempstring=" ".join(tlist)
+                    tlist=tempstring.split("\~")
+                    tempstring="".join(tlist)
                 outstring+=tempstring
                 outstring+=")"
                 blocks+=["function"]
@@ -336,6 +353,12 @@ class compilerGold():
                 outstring+="} else if("
                 counter+=1
                 tempstring=lists[counter]
+                tlist=tempstring.split("&>")
+                tempstring="this->".join(tlist)
+                tlist=tempstring.split("&!")
+                tempstring="!".join(tlist)
+                tlist=tempstring.split("&*")
+                tempstring="*".join(tlist)
                 outstring+=tempstring
                 outstring+=")"
                 counter_o-=1
@@ -349,6 +372,14 @@ class compilerGold():
             elif tempstring=="USE_TOKEN_GOLD":
                 counter+=1
                 tempstring=lists[counter]
+                tl=tempstring.split("&>")
+                tempstring="this->".join(tl)
+                tl=tempstring.split("->")
+                tempstring="->".join(tl)
+                tl=tempstring.split("\_")
+                tempstring=" ".join(tl)
+                tl=tempstring.split("\~")
+                tempstring=tl.join(tl)
                 outstring+=tempstring
                 outstring+="("
                 counter+=1
@@ -357,6 +388,8 @@ class compilerGold():
                 tempstring="this->".join(tl)
                 tl=tempstring.split("->")
                 tempstring="->".join(tl)
+                tl=tempstring.split("&*")
+                tempstring="*".join(tl)
                 tl=tempstring.split("\_")
                 tempstring=" ".join(tl)
                 tl=tempstring.split("\~")
@@ -456,9 +489,10 @@ class compilerGold():
                 ls.pop()
                 ls.pop()
                 outstring="".join(ls)
-                outstring+="public:"
-                counter_o-=1
+                outstring+="public:\n"
+                outstring+=self.indentGold(counter_o)
                 blocks+=["contains"]
+                counter+=1
             elif tempstring=="MEMBER_TOKEN_GOLD":
                 pass
             elif tempstring=="CONSTRUCTOR_TOKEN_GOLD":
@@ -470,9 +504,9 @@ class compilerGold():
                     tempstring=""
                 else:
                     tlist=tempstring.split("str")
-                    tempstring="string".join(tempstring)
+                    tempstring="string".join(tlist)
                     tlist=tempstring.split("\_")
-                    tempstring=" ".join(tempstring)
+                    tempstring=" ".join(tlist)
                     tlist=tempstring.split("\~")
                     tempstring="".join(tlist)
                 outstring+=tempstring
@@ -482,6 +516,12 @@ class compilerGold():
                 outstring+="while("
                 counter+=1
                 tempstring=lists[counter]
+                tlist=tempstring.split("&>")
+                tempstring="this->".join(tlist)
+                tlist=tempstring.split("&!")
+                tempstring="!".join(tlist)
+                tlist=tempstring.split("&*")
+                tempstring="*".join(tlist)
                 outstring+=tempstring
                 outstring+=")"
                 blocks+=["while"]
@@ -491,8 +531,12 @@ class compilerGold():
                 tlist=tempstring.split("&>")
                 tempstring="this->".join(tlist)
                 outstring+=tempstring
-                stack+=[tempstring]
-                stack_type+=["scaler"]
+                try:
+                    stack.append(tempstring)
+                    stack_type.append("scaler")
+                except:
+                    print("token:"+str(counter))
+                    return 2
                 outstring+="=new "
                 counter+=1
                 tempstring=lists[counter]
@@ -518,8 +562,12 @@ class compilerGold():
             elif tempstring=="SUBTRACTIONASSIGNMENT_TOKEN_GOLD":
                 outstring+="-="
             elif tempstring=="STACK_TO_HEAP_TOKEN_GOLD_COMPILER":
-                heap+=[stack.pop()]
-                heap_type+=[stack_type.pop()]
+                try:
+                    heap+=[stack.pop()]
+                    heap_type+=[stack_type.pop()]
+                except:
+                    print("token:"+str(counter))
+                    return 2
             elif tempstring=="SUBTRACTION_TOKEN_GOLD":
                 outstring+="-"
             elif tempstring=="CREATEARRAY_TOKEN_GOLD_TOKEN_GOLD":
@@ -528,8 +576,12 @@ class compilerGold():
                 tlist=tempstring.split("&>")
                 tempstring="this->".join(tlist)
                 outstring+=tempstring
-                stack+=[tempstring]
-                stack_type+=["array"]
+                try:
+                    stack.append(tempstring)
+                    stack_type.append("array")
+                except:
+                    print("token:"+str(counter))
+                    return 2
                 outstring+="=new "
                 counter+=1
                 tempstring=lists[counter]
@@ -615,6 +667,14 @@ class compilerGold():
                 outstring+=cname
                 outstring+="()"
                 blocks+=["deconstructor"]
+            elif tempstring=="NOT_TOKEN_GOLD":
+                outstring+="!"
+            elif tempstring=="ACCESS_TOKEN_GOLD":
+                outstring+="["
+                counter+=1
+                tempstring=lists[counter]
+                outstring+=tempstring
+                outstring+="]"
             else:
                 outstring+=tempstring
             counter+=1
@@ -1116,7 +1176,7 @@ class compilerGold():
         elif error==1:
             print("stream error")
         elif error==2:
-            print("stack type error")
+            print("stack error")
         elif error==3:
             print("heap error")
 if __name__=="__main__":
