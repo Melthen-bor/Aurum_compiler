@@ -4,4 +4,4 @@ We make no claim of continued support for this project and we are not responsibl
 This code is provided as-is and no warrenty is provided. This code is provided for the benefit of humanity.
 You may implement your own version of this project. When we use the term "soon", we mean eventually and make no promise that "soon" will
 come before the end of time. Any damage caused by planning based off of "soon" is not our fault but yours. We make no promise that
-you will not create bugs in this and we also make no promise that the compiler will not break
+you will not create bugs in this and we also make no promise that the compiler will not break.
