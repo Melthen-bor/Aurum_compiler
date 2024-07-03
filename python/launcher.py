@@ -14,6 +14,7 @@ while 1==1:
     flag_exit=False
     flag_impr=False
     flag_test=False
+    flags_linux=False
     pack_name=flags[0]
     manager=pm.Manager(flags[1])
     pack_loc=flags[2]
@@ -63,6 +64,10 @@ while 1==1:
             flag_test=True
         elif flags[count]=="-release":
             flag_test=False
+        elif flags[count]=="-linux":
+            flags_linux=True
+        elif flags[count]=="-other":
+            flags_linux=False
         count+=1
     if flag_pack:
         if flag_setup:
@@ -93,7 +98,7 @@ while 1==1:
             while count<amount:
                 manager.use_Package(packages[count],pack_loc,project=pack_name)
                 count+=1
-            compiler=cmp.compilerGold(flag_kernel)
+            compiler=cmp.compilerGold(flag_kernel,flag_linux)
             preprocessor=pp.preprocessor("aur","aurobj","aur_gold")
             files_metadata=open(pack_loc+pack_name+".compile.metadata")
             files=files_metadata.read().split("\n")
