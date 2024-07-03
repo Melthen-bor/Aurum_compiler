@@ -1,18 +1,3 @@
-#start_def java
-class start
-function void main String[]\_args start
-initIO ;
-int option ;
-sysout << "Hello,\_world" ;
-sysin >> option ;
+program start
+sysout << " Hello, %_ world " ;
 end
-end
-#end_def
-#start_def fortran
-int option;
-sysout << "Hello,\_world" ;
-sysin >> option ;
-#end_def
-! undefine the one not being compiled to
-#if_def java
-#if_def fortran
