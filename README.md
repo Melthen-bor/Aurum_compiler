@@ -1,8 +1,8 @@
 This is a compiler and preprocessor for simple(depends on definition) programming language
 
 can compile to:
-* java(a little behind on implementation)
-* fortran(not finished)
+* java(needs to be updated)
+* fortran(deprecated)
 * c++(.h/.cpp)
 
 [hello world programs](https://github.com/Melthen-bor/Gold/wiki/Hello-world)
