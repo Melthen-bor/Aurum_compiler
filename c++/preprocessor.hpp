@@ -1,6 +1,55 @@
 #ifndef AURUM_COMPILER_PREPROCESSOR
 #define AURUM_COMPILER_PREPROCESSOR
 #include "main_functions.hpp"
+class macro {
+	std::vector<std::string> lines;
+	std::vector<std::string> arguments;
+	std::string name;
+public:
+	macro(std::string name,std::vector<std::string> args) {
+		this->name = name;
+		this->lines = std::vector<std::string>();
+		this->arguments = args;
+	}
+	void add_line(std::string line) {
+		this->lines.push_back(line);
+	}
+	std::string format_line(std::vector<std::string>& values,unsigned long long line) {
+		std::vector<std::string> tokens;
+		split(tokens, this->lines.at(line), ' ');
+		unsigned long long count = 0;
+		unsigned long long index;
+		while (count < tokens.size()) {
+			if (contains<std::string,std::string>(this->arguments, tokens.at(count))) {
+				index = indexOf<std::string,std::string>(this->arguments, tokens.at(count));
+				tokens[count] = values.at(index);
+			}
+			count++;
+		}
+		return join(tokens, ' ');
+	}
+	void insert(std::vector<std::string>& lines, unsigned long long line,std::vector<std::string>& values) {
+		std::vector<std::string> format_lines;
+		unsigned long long count = 0;
+		while (count < this->lines.size()) {
+			format_lines.push_back(this->format_line(values, count));
+			count++;
+		}
+		lines[line] = join(format_lines, '\n');
+	}
+	bool operator ==(std::string name) {
+		return this->name == name;
+	}
+	std::string operator --(int amount) {
+		return remove<std::string>(this->lines, this->lines.size() - 1);
+	}
+	std::string operator [](int line) {
+		return this->lines.at(line);
+	}
+	int size() {
+		return this->lines.size();
+	}
+};
 unsigned char preprocess_run(std::vector<std::string>& lines, std::vector<macro>& macros,std::vector<std::string>& files,std::string& direct) {
 	unsigned long long count = 0;
 	std::string line;
