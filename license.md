@@ -1,4 +1,4 @@
-# The Auris Language License
+# The Aurum Language License
 You are not allowed to claim this project as your own. You are allowed to use this in your project with proper acknowledgement.
 We make no claim of continued support for this project and we are not responsible any damages caused by lack any knowledge or common sense when using our project.
 This code is provided as-is and no warrenty is provided. This code is provided for the benefit of humanity.
