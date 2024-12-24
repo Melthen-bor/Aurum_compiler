@@ -932,9 +932,30 @@ public:
 		return out;
 	}
 	void setup_cpp(std::ofstream& file) {
-		file << "#include <string>\n#include <iostream>\ntypedef std::string str;\ntypedef unsigned char byte;\n";
+		file << "#include <string>\n";
+		file << "#include <iostream>\n";
+		file << "typedef std::string str;\n";
+		//file << "struct byte{\n";
+		//file << "unsigned char data;\n";
+		//file << "byte(unsigned char);\n";
+		//file << "byte add(byte other);\n";
+		//file << "void ass(byte other);\n"
+		//file << "};\n";
+		file << "typedef unsigned char byte;\n";
 		file << "typedef signed char Sbyte;\ntypedef unsigned short Umini;\ntypedef short mini;\ntypedef unsigned Ucint;\ntypedef int cint;\n";
 		file << "typedef unsigned long Ulong;\ntypedef unsigned long long Ullong;\ntypedef long long llong;";
+		//std::ofstream Lfile("defaults.cpp");
+		//Lfile << "#include <declarations.hpp>\n";
+		//Lfile << "byte::byte(unsigned char value){\n";
+		//Lfile << "  this->data=value;\n";
+		//Lfile << "}\n";
+		//Lfile << "byte byte::add(byte other){\n";
+		//Lfile << "  return this->data+other.data;\n";
+		//Lfile << "}\n";
+		//Lfile << "void byte::ass(byte other){\n";
+		//Lfile << " this->data=other.data;\n";
+		//Lfile << "}\n";
+		//Lfile.close();
 	}
 	void setup_c() {
 		std::ofstream Lfile("language_defaults.h");
@@ -987,6 +1008,7 @@ public:
 		bool afterAssignment = false;
 		bool afterReturn = false;
 		bool inProcedure = false;
+		//bool afterOperation = false;
 		print(tkns);
 		unsigned char stream_type = 0;
 		unsigned long long last_var_type = 0;
@@ -1122,6 +1144,17 @@ public:
 				isMember = false;
 				break;
 			case 5:
+				/*if (!tkns.at(index - 1).type) {
+					file << ".add(";
+					index++;
+					if (tkns.at(index).type == 9) {
+						file << '*';
+						index++;
+					}
+					if (tkns.at(index).type) return 1;
+					else file << tkns.at(index).val << ')';
+				}
+				else file << '+';*/
 				file << '+';
 				break;
 			case 6:
@@ -1169,7 +1202,8 @@ public:
 				index++;
 				[[unlikely]] if (tkns.at(index).type) return 1;
 				[[likely]] if ((!(does_function_exist(classes.at(find_class(classes, types.at(last_var_type).name)).methods, tkns.at(index).val)))&&(!(does_procedure_exist(classes.at(find_class(classes,types.at(last_var_type).name)).procedures,tkns.at(index).val)))) return 1;
-				file << "->" << tkns.at(index).val;
+				if (is_last_varPointer) file << "->" << tkns.at(index).val;
+				else file << '.' << tkns.at(index).val;
 				if (does_function_exist(classes.at(find_class(classes, types.at(last_var_type).name)).methods, tkns.at(index).val)) {
 					if (classes.at(find_class(classes, types.at(last_var_type).name)).methods.at(find_function(classes.at(find_class(classes, types.at(last_var_type).name)).methods, tkns.at(index).val)).no_discard && !afterAssignment) return 1;
 					last_var_type = classes.at(find_class(classes, types.at(last_var_type).name)).methods.at(find_function(classes.at(find_class(classes, types.at(last_var_type).name)).methods, tkns.at(index).val)).Rtype;
@@ -1252,6 +1286,12 @@ public:
 				afterAssignment = true;
 				break;
 			case 35:
+				//file << ".ass(";
+				//index++;
+				//if (tkns.at(index).type == 9) {
+				//	file << '*';
+				//	index++;
+				//}
 				file << '=';
 				afterAssignment = true;
 				break;
