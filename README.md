@@ -16,9 +16,6 @@ planned to compile to:
 
 [compilation guide](https://github.com/Melthen-bor/Aurum_compiler/wiki/compiler-flags)
 # Use
-
 if you want to use the preprocessor than it has to be muiltiple lines.
-
-The compiler built in c++ is the only stable version but has a few bugs.
 # Building
 The compiler is contained in a single file so just call a c++ compiler on it
