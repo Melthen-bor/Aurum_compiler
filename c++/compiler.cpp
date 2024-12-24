@@ -3,7 +3,6 @@
 #include <vector>
 #include <string>
 #include <filesystem>
-#define USER_ERROR "Ic forhealde the!\n"
 unsigned char pass() {
 	return 0;
 }
@@ -633,7 +632,7 @@ std::string preprocess(std::string name) {
 void load_flags(std::vector<std::string>& flags, char* argv[], int argc) {
 	int count = 0;
 	if (argc < 2) {
-		std::cout << USER_ERROR;
+		std::cout << "Not enough arguments are supplies!\n";
 		std::exit(1);
 	}
 	while (count < argc) flags.push_back(argv[count++]);
@@ -858,7 +857,7 @@ public:
 		file << '(';
 		while (loop) {
 			if (index == tkns.size()) {
-				std::cout << USER_ERROR;
+				std::cout << "Unpaired brace detected: reached end of token list with a closing brace!\n";
 				std::exit(1);
 			}
 			print(tkns, index);
@@ -908,7 +907,6 @@ public:
 					index += 2;
 					break;
 				default:
-
 					return { args,1 };
 				}
 				break;
@@ -1014,7 +1012,7 @@ public:
 		unsigned long long last_var_type = 0;
 		std::ofstream file(name + ".cpp");
 		if (!file.is_open()) {
-			std::cout << USER_ERROR;
+			std::cout << "File cannot be opened\n!";
 			return 2;
 		}
 		file << "#include <declarations.hpp>\n";
@@ -1872,7 +1870,11 @@ void compile(language_type lang, system_type os, flags& values,std::vector<std::
 		lex.reset(preprocess(files.at(index)+".aur"));
 		switch (lang) {
 		case 0:
-			if (stuff.compile_cpp(lex.tokenize(), files.at(index), values, os)) std::cout << "Failed to compile:" << files.at(index) + ".aur\n";
+			try{
+			if (stuff.compile_cpp(lex.tokenize(), files.at(index), values, os)) std::cout << "Failed to compile: " << files.at(index) + ".aur\n";
+			} catch(...){
+				std::cout<<"Failed to compile: "<<files.at(index)<<".aur due to exception\n";
+			}
 			break;
 		}
 		index++;
@@ -1889,7 +1891,7 @@ int main(int argc, char* argv[]) {
 	std::string temp;
 	std::vector<std::string> arguments;
 	if (argc < 2) {
-		std::cout << USER_ERROR;
+		std::cout << "No arguments supplied!\n";
 		return 1;
 	}
 	load_flags(arguments, argv, argc);
@@ -1900,29 +1902,13 @@ int main(int argc, char* argv[]) {
 		temp = arguments.at(count);
 		if (temp == "-java") lang = 1;
 		else if (temp == "-cpp") lang = 0;
-		else if (temp == "-new") values.store(0, true);
-		else if (temp == "-old") values.store(0, false);
-		else if (temp == "-update") values.store(1, true);
-		else if (temp == "-complete") values.store(1, false);
-		else if (temp == "-package") values.store(2, true);
-		else if (temp == "-project") values.store(2, false);
-		else if (temp == "-show") values.store(3, true);
-		else if (temp == "-hide") values.store(3, false);
-		else if (temp == "-kernel") values.store(4, true);
-		else if (temp == "-app") values.store(4, false);
-		else if (temp == "-test") values.store(5, true);
-		else if (temp == "-stable") values.store(5, false);
-		else if (temp == "-debug") values.store(6, true);
-		else if (temp == "-release") values.store(6, false);
-		else if (temp == "-header") values.store(7, true);
-		else if (temp == "-source") values.store(7, false);
 		else if (temp == "-linux") operating = 1;
 		else if (temp == "-windows") operating = 0;
 		else files.push_back(temp);
 		count++;
 	}
 	if (!files.size()) {
-		std::cout << USER_ERROR;
+		std::cout << "No files supplied!\n";
 		return 1;
 	}
 	compile(lang, operating, values, files);
