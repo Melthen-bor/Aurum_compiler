@@ -1,7 +1,7 @@
 This is a compiler and preprocessor for simple(depends on definition) programming language
 
 can compile to:
-* C++(.h/.cpp)
+* C++
 
 planned to compile to:
 * C
