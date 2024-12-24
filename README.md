@@ -1,8 +1,6 @@
 This is a compiler and preprocessor for simple(depends on definition) programming language
 
 can compile to:
-* Java(needs to be updated)
-* Fortran(deprecated)
 * C++(.h/.cpp)
 
 planned to compile to:
@@ -11,6 +9,8 @@ planned to compile to:
 * Rust
 * Python
 * Go
+* Java
+* Asm
 
 [hello world programs](https://github.com/Melthen-bor/Aurum_compiler/wiki/Hello-world)
 
