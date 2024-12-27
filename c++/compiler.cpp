@@ -96,6 +96,7 @@ public:
 				else if (buf == "create") tkns.push_back(token{ 64 });
 				else if (buf == "destroy") tkns.push_back(token{ 65 });
 				else if (buf == "letter") tkns.push_back(token{ 67 });
+				else if (buf == "embed") tkns.push_back(token{ 68 });
 				else tkns.push_back(token{ 0,buf });
 				buf.clear();
 			}
@@ -996,6 +997,40 @@ public:
 		if (!procedures.size()) return 0;
 		return does_argument_exist(procedures.at(procedures.size() - 1).args, name);
 	}
+	void compile_arguments(std::ofstream& file, Arguments& args) {
+		unsigned index = 0;
+		file << '(';
+		while (index < args.size()) {
+			if (index > 0) file << ',';
+			file << types.at(args.at(index).value_type).name;
+			if (args.at(index).type_of_argument) file << '*';
+			file << ' ';
+			file << args.at(index++).name;
+		}
+		file << ')';
+	}
+	void compile_default_call(std::ofstream& file, Arguments& args) {
+		unsigned index = 0;
+		file << '(';
+		while (index < args.size()) {
+			if (index > 0) file << ',';
+			file << args.at(index++).name;
+		}
+		file << ')';
+	}
+	void compile_struct_members(std::ofstream& file,Class& cl) {
+		file << '{';
+		unsigned count = 0;
+		while (count < cl.members.size()) {
+			if (count) file << ',';
+			file << "this->" << cl.members.at(count++).name;
+		}
+		file << '}';
+	}
+	void set_struct_members(std::ofstream& file, Class& cl,std::string name) {
+		unsigned count = 0;
+		while (count < cl.members.size()) file << "this->" << cl.members.at(count).name << '=' << name << '.' << cl.members.at(count++).name << ";\n" << indent(scopes.size() - 1);
+	}
 	unsigned long long compile_cpp(Tokens tkns,std::string& name,flags& values,system_type sys) {
 		index = 0;
 		bool inClass = false;
@@ -1081,8 +1116,20 @@ public:
 						is_last_varPointer = functions.at(find_function(functions, tkns.at(index).val)).ptr_type;
 						if (functions.at(find_function(functions, tkns.at(index).val)).no_discard && !afterAssignment) return 1;
 						file << tkns.at(index).val;
+						if (tkns.at(index + 1).type == 4) {
+							compile_default_call(file, functions.at(find_function(functions, tkns.at(index).val)).args);
+							index++;
+						}
+						else if (!(tkns.at(index + 1).type == 42)) return 1;
 					}
-					else if (does_procedure_exist(procedures, tkns.at(index).val)) file << tkns.at(index).val;
+					else if (does_procedure_exist(procedures, tkns.at(index).val)) {
+						file << tkns.at(index).val;
+						if (tkns.at(index + 1).type == 4) {
+							compile_default_call(file, procedures.at(find_procedure(procedures, tkns.at(index).val)).args);
+							index++;
+						}
+						else if (!(tkns.at(index + 1).type == 42)) return 1;
+					}
 					else if (inProgram) {
 						if (tkns.at(index).val == "argc") file << "argc";
 						else if (tkns.at(index).val == "argv") {
@@ -1187,7 +1234,6 @@ public:
 				[[unlikely]] if (does_variable_exist(classes.at(classes.size() - 1).members, tkns.at(index).val)) last_var_type = classes.at(classes.size() - 1).members.at(find_variable(classes.at(classes.size() - 1).members, tkns.at(index).val)).type;
 				else if (does_function_exist(classes.at(index).methods, tkns.at(index).val)) {
 					last_var_type = classes.at(classes.size() - 1).methods.at(find_function(classes.at(classes.size() - 1).methods, tkns.at(index).val)).Rtype;
-					if (classes.at(classes.size() - 1).methods.at(find_function(classes.at(classes.size() - 1).methods, tkns.at(index).val)).no_discard && !afterAssignment) return 1;
 				}
 				else if (does_procedure_exist(classes.at(index).procedures, tkns.at(index).val)) pass();
 				else {
@@ -1195,6 +1241,21 @@ public:
 					return 1;
 				}
 				file << "this->" << tkns.at(index).val;
+				if (does_function_exist(classes.at(classes.size()-1).methods, tkns.at(index).val)) {
+					if (classes.at(classes.size() - 1).methods.at(find_function(classes.at(classes.size() - 1).methods, tkns.at(index).val)).no_discard && !afterAssignment) return 1;
+					if (tkns.at(index + 1).type == 4) {
+						compile_default_call(file, classes.at(classes.size() - 1).methods.at(find_function(classes.at(classes.size() - 1).methods, tkns.at(index).val)).args);
+						index++;
+					}
+					else if (!(tkns.at(index + 1).type == 42)) return 1;
+				}
+				else if (does_procedure_exist(classes.at(classes.size() - 1).procedures, tkns.at(index).val)) {
+					if (tkns.at(index + 1).type == 4) {
+						compile_default_call(file, classes.at(classes.size() - 1).procedures.at(find_procedure(classes.at(classes.size() - 1).procedures, tkns.at(index).val)).args);
+						index++;
+					}
+					else if (!(tkns.at(index + 1).type == 42)) return 1;
+				}
 				break;
 			case 12:
 				index++;
@@ -1205,6 +1266,18 @@ public:
 				if (does_function_exist(classes.at(find_class(classes, types.at(last_var_type).name)).methods, tkns.at(index).val)) {
 					if (classes.at(find_class(classes, types.at(last_var_type).name)).methods.at(find_function(classes.at(find_class(classes, types.at(last_var_type).name)).methods, tkns.at(index).val)).no_discard && !afterAssignment) return 1;
 					last_var_type = classes.at(find_class(classes, types.at(last_var_type).name)).methods.at(find_function(classes.at(find_class(classes, types.at(last_var_type).name)).methods, tkns.at(index).val)).Rtype;
+					if (tkns.at(index + 1).type == 4) {
+						compile_default_call(file, classes.at(find_class(classes, types.at(last_var_type).name)).methods.at(find_function(classes.at(find_class(classes, types.at(last_var_type).name)).methods, tkns.at(index).val)).args);
+						index++;
+					}
+					else if (!(tkns.at(index + 1).type == 42)) return 1;
+				}
+				else if (does_procedure_exist(classes.at(find_class(classes, types.at(last_var_type).name)).procedures, tkns.at(index).val)) {
+					if (tkns.at(index + 1).type == 4) {
+						compile_default_call(file, classes.at(find_class(classes, types.at(last_var_type).name)).procedures.at(find_procedure(classes.at(find_class(classes, types.at(last_var_type).name)).procedures, tkns.at(index).val)).args);
+						index++;
+					}
+					else if (!(tkns.at(index + 1).type == 42)) return 1;
 				}
 				break;
 			case 13:
@@ -1336,6 +1409,10 @@ public:
 					if (tkns.at(index).type) return 1;
 					std::cout << types.at(scopes.at(get_variable_scope(tkns.at(index).val)).variables.at(find_variable(scopes.at(get_variable_scope(tkns.at(index).val)).variables, tkns.at(index).val)).type).name;
 				}
+				else if (tkns.at(index).val == "CREATE") mode.store(5, 0);
+				else if (tkns.at(index).val == "DEFINE") mode.store(5, 1);
+				else if (tkns.at(index).val == "EMBED_DEFINITION") mode.store(6, 0);
+				else if (tkns.at(index).val == "OVERRIDE") mode.store(6, 1);
 				break;
 			case 38:
 				if (inClass) file << "{\n" << indent(scopes.size() - 1);
@@ -1491,24 +1568,30 @@ public:
 				{
 					token ret = tkns.at(index);
 					token name = tkns.at(index + 1);
-					index+=3;
+					index+=2;
 					Arguments args;
 					unsigned char pointer_type = 0;
 					if (inClass) file << ret.val << ' ' << classes.at(classes.size() - 1).name << "::" << name.val;
 					else file << ret.val << ' ' << name.val;
-					{
-						Args temp = get_args(file, tkns);
-						if (temp.flags) return 1;
-						args = temp.args;
+					if (tkns.at(index).type == 42) {
+						index++;
+						{
+							Args temp = get_args(file, tkns);
+							if (temp.flags) return 1;
+							args = temp.args;
+						}
 					}
+					else if (tkns.at(index).type == 38) file<<"()";
 					if (mode.get(1)) {
 						if (mode.get(0)) pointer_type = 2;
 						else pointer_type = 1;
 						mode.store(0, 0);
 						mode.store(1, 0);
 					}
-					if (inClass) classes.at(classes.size() - 1).methods.push_back({ name.val, args, find_type(types, ret.val),pointer_type,mode.get(3) });
-					else functions.push_back({ name.val,args,find_type(types,ret.val),pointer_type,mode.get(3) });
+					if (!mode.get(5)) {
+						if (inClass) classes.at(classes.size() - 1).methods.push_back({ name.val, args, find_type(types, ret.val),pointer_type,mode.get(3) });
+						else functions.push_back({ name.val,args,find_type(types,ret.val),pointer_type,mode.get(3) });
+					}
 					mode.store(3, 0);
 				}
 				inFunction = true;
@@ -1539,16 +1622,20 @@ public:
 				if (tkns.at(index).type) return 1;
 				{
 					token name = tkns.at(index);
-					index+=2;
+					index++;
 					Arguments args;
 					unsigned char pointer_type = 0;
 					if (inClass) file << "void " << classes.at(classes.size() - 1).name << "::" << name.val;
 					else file << "void " << name.val;
-					{
-						Args temp = get_args(file, tkns);
-						if (temp.flags) return 1;
-						args = temp.args;
+					if (tkns.at(index).type == 42) {
+						index++;
+						{
+							Args temp = get_args(file, tkns);
+							if (temp.flags) return 1;
+							args = temp.args;
+						}
 					}
+					else if (tkns.at(index).type == 38) file << "()";
 					if (inClass) classes.at(classes.size() - 1).procedures.push_back({ name.val,args });
 					else procedures.push_back({ name.val,args });
 				}
@@ -1731,6 +1818,67 @@ public:
 				index++;
 				if (!(tkns.at(index).type == 4)) return 1;
 				break;
+			case 68:
+				if (!inClass) return 1;
+				index++;
+				if (tkns.at(index).type) return 1;
+				if (find_class(classes, tkns.at(index).val)==classes.size()) return 1;
+				if (find_class(classes, tkns.at(index).val) == (classes.size() - 1)) return 1;
+				{
+					unsigned count = 0;
+					while (count < classes.at(find_class(classes, tkns.at(index).val)).members.size()) {
+						if (!(find_variable(classes.at(classes.size() - 1).members, classes.at(find_class(classes, tkns.at(index).val)).members.at(count).name) == classes.at(classes.size() - 1).members.size())) return 1;
+						classes.at(classes.size() - 1).members.push_back(classes.at(find_class(classes, tkns.at(index).val)).members.at(count++));
+					}
+					count = 0;
+					while (count < classes.at(find_class(classes, tkns.at(index).val)).methods.size()) {
+						if (!(find_function(classes.at(classes.size() - 1).methods, classes.at(find_class(classes, tkns.at(index).val)).methods.at(count).name) == classes.at(classes.size() - 1).methods.size())) return 1;
+						classes.at(classes.size() - 1).methods.push_back(classes.at(find_class(classes, tkns.at(index).val)).methods.at(count));
+						if (!mode.get(6)) {
+							file << types.at(classes.at(classes.size() - 1).methods.at(classes.at(classes.size() - 1).methods.size() - 1).Rtype).name << ' ';
+							file << classes.at(classes.size() - 1).name << "::";
+							file << classes.at(classes.size() - 1).methods.at(classes.at(classes.size() - 1).methods.size() - 1).name;
+							compile_arguments(file, classes.at(classes.size() - 1).methods.at(classes.at(classes.size() - 1).methods.size() - 1).args);
+							file << "{\n" << indent(scopes.size() - 1);
+							file << classes.at(find_class(classes, tkns.at(index).val)).name << " temp=";
+							compile_struct_members(file, classes.at(find_class(classes, tkns.at(index).val)));
+							file << ";\n" << indent(scopes.size() - 1);
+							file << types.at(classes.at(classes.size() - 1).methods.at(classes.at(classes.size() - 1).methods.size() - 1).Rtype).name << " ret=";
+							file << "temp." << classes.at(classes.size() - 1).methods.at(classes.at(classes.size() - 1).methods.size() - 1).name;
+							compile_default_call(file, classes.at(classes.size() - 1).methods.at(classes.at(classes.size() - 1).methods.size() - 1).args);
+							file << ";\n" << indent(scopes.size() - 1);
+							set_struct_members(file, classes.at(find_class(classes, tkns.at(index).val)), "temp");
+							file << "return ret;\n" << indent(scopes.size() - 2);
+							file << "}\n" << indent(scopes.size() - 2);
+						}
+						count++;
+					}
+					count = 0;
+					while (count < classes.at(find_class(classes, tkns.at(index).val)).procedures.size()) {
+						if (!(find_procedure(classes.at(classes.size() - 1).procedures, classes.at(find_class(classes, tkns.at(index).val)).procedures.at(count).name) == classes.at(classes.size() - 1).procedures.size())) return 1;
+						classes.at(classes.size() - 1).procedures.push_back(classes.at(find_class(classes, tkns.at(index).val)).procedures.at(count));
+						if (!mode.get(6)) {
+							file << "void ";
+							file << classes.at(classes.size() - 1).name << "::";
+							file << classes.at(classes.size() - 1).procedures.at(classes.at(classes.size() - 1).procedures.size() - 1).name;
+							compile_arguments(file, classes.at(classes.size() - 1).procedures.at(classes.at(classes.size() - 1).procedures.size() - 1).args);
+							file << "{\n" << indent(scopes.size() - 1);
+							file << classes.at(find_class(classes, tkns.at(index).val)).name << " temp=";
+							compile_struct_members(file, classes.at(find_class(classes, tkns.at(index).val)));
+							file << ";\n" << indent(scopes.size() - 1);
+							file << "temp." << classes.at(classes.size() - 1).procedures.at(classes.at(classes.size() - 1).procedures.size() - 1).name;
+							compile_default_call(file, classes.at(classes.size() - 1).procedures.at(classes.at(classes.size() - 1).procedures.size() - 1).args);
+							file << ";\n" << indent(scopes.size() - 1);
+							set_struct_members(file, classes.at(find_class(classes, tkns.at(index).val)), "temp");
+							file.seekp(file.tellp().operator-(1));
+							file << "}\n" << indent(scopes.size() - 2);
+						}
+						count++;
+					}
+				}
+				index++;
+				if (!(tkns.at(index).type == 4)) return 1;
+				break;
 			}
 			index++;
 		}
@@ -1746,21 +1894,8 @@ public:
 	unsigned long long compile_c() {
 		return pass();
 	}
-	void compile_arguments(std::ofstream& file, Arguments& args) {
-		unsigned index = 0;
-		file << '(';
-		while (index < args.size()) {
-			if (index > 0) file << ',';
-			file << types.at(args.at(index).value_type).name;
-			if (args.at(index).type_of_argument) file << '*';
-			file << ' ';
-			file << args.at(index).name;
-			index++;
-		}
-		file << ')';
-	}
 	void compile_class_cpp(std::ofstream& file,unsigned class_index) {
-		file << "\nclass " << classes.at(class_index).name << '{';
+		file << "\nstruct " << classes.at(class_index).name << '{';
 		unsigned index = 0;
 		while (index < classes.at(class_index).members.size()) {
 			file << '\n' << indent(1) << types.at(classes.at(class_index).members.at(index).type).name;
@@ -1768,7 +1903,6 @@ public:
 			file << ' ' << classes.at(class_index).members.at(index).name << ';';
 			index++;
 		}
-		file << "\npublic:";
 		index = 0;
 		while (index < classes.at(class_index).methods.size()) {
 			file << '\n' << indent(1) << types.at(classes.at(class_index).methods.at(index).Rtype).name;
