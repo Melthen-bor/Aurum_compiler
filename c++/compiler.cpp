@@ -1116,18 +1116,12 @@ public:
 						is_last_varPointer = functions.at(find_function(functions, tkns.at(index).val)).ptr_type;
 						if (functions.at(find_function(functions, tkns.at(index).val)).no_discard && !afterAssignment) return 1;
 						file << tkns.at(index).val;
-						if (tkns.at(index + 1).type == 4) {
-							compile_default_call(file, functions.at(find_function(functions, tkns.at(index).val)).args);
-							index++;
-						}
+						if (tkns.at(index + 1).type == 4) compile_default_call(file, functions.at(find_function(functions, tkns.at(index).val)).args);
 						else if (!(tkns.at(index + 1).type == 42)) return 1;
 					}
 					else if (does_procedure_exist(procedures, tkns.at(index).val)) {
 						file << tkns.at(index).val;
-						if (tkns.at(index + 1).type == 4) {
-							compile_default_call(file, procedures.at(find_procedure(procedures, tkns.at(index).val)).args);
-							index++;
-						}
+						if (tkns.at(index + 1).type == 4) compile_default_call(file, procedures.at(find_procedure(procedures, tkns.at(index).val)).args);
 						else if (!(tkns.at(index + 1).type == 42)) return 1;
 					}
 					else if (inProgram) {
@@ -1243,17 +1237,11 @@ public:
 				file << "this->" << tkns.at(index).val;
 				if (does_function_exist(classes.at(classes.size()-1).methods, tkns.at(index).val)) {
 					if (classes.at(classes.size() - 1).methods.at(find_function(classes.at(classes.size() - 1).methods, tkns.at(index).val)).no_discard && !afterAssignment) return 1;
-					if (tkns.at(index + 1).type == 4) {
-						compile_default_call(file, classes.at(classes.size() - 1).methods.at(find_function(classes.at(classes.size() - 1).methods, tkns.at(index).val)).args);
-						index++;
-					}
+					if (tkns.at(index + 1).type == 4) compile_default_call(file, classes.at(classes.size() - 1).methods.at(find_function(classes.at(classes.size() - 1).methods, tkns.at(index).val)).args);
 					else if (!(tkns.at(index + 1).type == 42)) return 1;
 				}
 				else if (does_procedure_exist(classes.at(classes.size() - 1).procedures, tkns.at(index).val)) {
-					if (tkns.at(index + 1).type == 4) {
-						compile_default_call(file, classes.at(classes.size() - 1).procedures.at(find_procedure(classes.at(classes.size() - 1).procedures, tkns.at(index).val)).args);
-						index++;
-					}
+					if (tkns.at(index + 1).type == 4) compile_default_call(file, classes.at(classes.size() - 1).procedures.at(find_procedure(classes.at(classes.size() - 1).procedures, tkns.at(index).val)).args);
 					else if (!(tkns.at(index + 1).type == 42)) return 1;
 				}
 				break;
@@ -1266,17 +1254,11 @@ public:
 				if (does_function_exist(classes.at(find_class(classes, types.at(last_var_type).name)).methods, tkns.at(index).val)) {
 					if (classes.at(find_class(classes, types.at(last_var_type).name)).methods.at(find_function(classes.at(find_class(classes, types.at(last_var_type).name)).methods, tkns.at(index).val)).no_discard && !afterAssignment) return 1;
 					last_var_type = classes.at(find_class(classes, types.at(last_var_type).name)).methods.at(find_function(classes.at(find_class(classes, types.at(last_var_type).name)).methods, tkns.at(index).val)).Rtype;
-					if (tkns.at(index + 1).type == 4) {
-						compile_default_call(file, classes.at(find_class(classes, types.at(last_var_type).name)).methods.at(find_function(classes.at(find_class(classes, types.at(last_var_type).name)).methods, tkns.at(index).val)).args);
-						index++;
-					}
+					if (tkns.at(index + 1).type == 4) compile_default_call(file, classes.at(find_class(classes, types.at(last_var_type).name)).methods.at(find_function(classes.at(find_class(classes, types.at(last_var_type).name)).methods, tkns.at(index).val)).args);
 					else if (!(tkns.at(index + 1).type == 42)) return 1;
 				}
 				else if (does_procedure_exist(classes.at(find_class(classes, types.at(last_var_type).name)).procedures, tkns.at(index).val)) {
-					if (tkns.at(index + 1).type == 4) {
-						compile_default_call(file, classes.at(find_class(classes, types.at(last_var_type).name)).procedures.at(find_procedure(classes.at(find_class(classes, types.at(last_var_type).name)).procedures, tkns.at(index).val)).args);
-						index++;
-					}
+					if (tkns.at(index + 1).type == 4) compile_default_call(file, classes.at(find_class(classes, types.at(last_var_type).name)).procedures.at(find_procedure(classes.at(find_class(classes, types.at(last_var_type).name)).procedures, tkns.at(index).val)).args);
 					else if (!(tkns.at(index + 1).type == 42)) return 1;
 				}
 				break;
