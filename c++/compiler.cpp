@@ -1,3 +1,6 @@
+/*
+CODE by Malthein_Bor(Melthen-bor)
+*/
 #include <iostream>
 #include <fstream>
 #include <vector>
