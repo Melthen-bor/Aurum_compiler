@@ -3,19 +3,22 @@
 #include <vector>
 #include <string>
 #include <filesystem>
+#include <cstdarg>
+#include <cstdlib>
+#define create_vector(type) typedef std::vector<type> type ## s
 unsigned char pass() {
 	return 0;
 }
-struct token {
+struct Token {
 	unsigned long long type;
 	std::string val = "";
 };
-typedef std::vector<token> Tokens;
+create_vector(Token);
 struct Type {
 	std::string name;
 	char start_character;
 };
-typedef std::vector<Type> Types;
+create_vector(Type);
 unsigned find_type(Types& types, std::string name) {
 	unsigned handle = 0;
 	while (handle < types.size()) {
@@ -38,6 +41,29 @@ unsigned find_type_with_char(Types& types, char start_char) {
 bool does_type_exist_with_char(Types& types, char start_char) {
 	return !(find_type_with_char(types, start_char) == types.size());
 }
+template<class Type> unsigned long long match(unsigned long long amount,Type value, ...) {
+	unsigned long long check = 0;
+	std::va_list args;
+	va_start(args, value);
+	while (check < amount) {
+		if (value == va_arg(args, Type)) break;
+		check++;
+	}
+	va_end(args);
+	return check;
+}
+template<class Type, class Basic> unsigned long long _loose_match(unsigned long long amount, Type value, ...) {
+	unsigned long long check = 0;
+	std::va_list args;
+	va_start(args, value);
+	while (check < amount) {
+		if (value == Type(va_arg(args, Basic))) break;
+		check++;
+	}
+	va_end(args);
+	return check;
+}
+#define loose_match(amount,value,test,...) _loose_match<decltype(value),test>(amount,value,__VA_ARGS__)
 struct Char {
 	bool exist;
 	char val;
@@ -74,62 +100,118 @@ public:
 			if (isalpha(peek().val)) {
 				buf.push_back(consume());
 				while ((peek().exist && isalnum(peek().val))||peek().val=='_') buf.push_back(consume());
-				if (buf == "return") tkns.push_back(token{ 1 });
-				else if (buf == "start") tkns.push_back(token{ 38 });
-				else if (buf == "end") tkns.push_back(token{ 39 });
-				else if (buf == "program") tkns.push_back(token{ 40 });
-				else if (buf == "class") tkns.push_back(token{ 41 });
-				else if (buf == "auto") tkns.push_back(token{ 47 });
-				else if (buf == "let") tkns.push_back(token{ 48 });
-				else if (buf == "if") tkns.push_back(token{ 49 });
-				else if (buf == "elf") tkns.push_back(token{ 50 });
-				else if (buf == "else") tkns.push_back(token{ 51 });
-				else if (buf == "unless") tkns.push_back(token{ 52 });
-				else if (buf == "while") tkns.push_back(token{ 53 });
-				else if (buf == "until") tkns.push_back(token{ 54 });
-				else if (buf == "function") tkns.push_back(token{ 55 });
-				else if (buf == "clr") tkns.push_back(token{ 56 });
-				else if (buf == "member") tkns.push_back(token{ 58 });
-				else if (buf == "sysout") tkns.push_back(token{ 59 });
-				else if (buf == "procedure") tkns.push_back(token{ 60 });
-				else if (buf == "sysin") tkns.push_back(token{ 61 });
-				else if (buf == "create") tkns.push_back(token{ 64 });
-				else if (buf == "destroy") tkns.push_back(token{ 65 });
-				else if (buf == "letter") tkns.push_back(token{ 67 });
-				else if (buf == "embed") tkns.push_back(token{ 68 });
-				else tkns.push_back(token{ 0,buf });
+				switch (loose_match(24, buf, char*,"return", "start", "end", "program", "class","auto", "let", "if", "elf", "else", "unless",
+					"while", "until", "function", "clr", "member", "sysout","procedure","sysin", "create", "destroy", "letter","embed","import","call")) {
+				case 0:
+					tkns.push_back({ 1 });
+					break;
+				case 1:
+					tkns.push_back({ 38 });
+					break;
+				case 2:
+					tkns.push_back({ 39 });
+					break;
+				case 3:
+					tkns.push_back({ 40 });
+					break;
+				case 4:
+					tkns.push_back({ 41 });
+					break;
+				case 5:
+					tkns.push_back({ 47 });
+					break;
+				case 6:
+					tkns.push_back({ 48 });
+					break;
+				case 7:
+					tkns.push_back({ 49 });
+					break;
+				case 8:
+					tkns.push_back({ 50 });
+					break;
+				case 9:
+					tkns.push_back({ 51 });
+					break;
+				case 10:
+					tkns.push_back({ 52 });
+					break;
+				case 11:
+					tkns.push_back({ 53 });
+					break;
+				case 12:
+					tkns.push_back({ 54 });
+					break;
+				case 13:
+					tkns.push_back({ 55 });
+					break;
+				case 14:
+					tkns.push_back({ 56 });
+					break;
+				case 15:
+					tkns.push_back({ 58 });
+					break;
+				case 16:
+					tkns.push_back({ 59 });
+					break;
+				case 17:
+					tkns.push_back({ 60 });
+					break;
+				case 18:
+					tkns.push_back({ 61 });
+					break;
+				case 19:
+					tkns.push_back({ 64 });
+					break;
+				case 20:
+					tkns.push_back({ 65 });
+					break;
+				case 21:
+					tkns.push_back({ 67 });
+					break;
+				case 22:
+					tkns.push_back({ 68 });
+					break;
+				case 23:
+					tkns.push_back({ 69 });
+					break;
+				case 24:
+					tkns.push_back({ 70 });
+					break;
+				default:
+					tkns.push_back({ 0,buf });
+				}
 				buf.clear();
 			}
 			else if (isdigit(peek().val)) {
 				buf.push_back(consume());
 				while (peek().exist && isdigit(peek().val)) buf.push_back(consume());
-				tkns.push_back(token{ 2,buf });
+				tkns.push_back({ 2,buf });
 				buf.clear();
 			}
 			else if (peek().val == '"') {
 				consume();
 				while (peek().exist && !(peek().val == '"')) buf.push_back(consume());
 				consume();
-				tkns.push_back(token{ 3,buf });
+				tkns.push_back({ 3,buf });
 				buf.clear();
 			}
 			else if (peek().val == ';') {
 				consume();
-				tkns.push_back(token{ 4 });
+				tkns.push_back({ 4 });
 			}
 			else if (peek().val == '+') {
 				consume();
 				switch (peek().val) {
 				case 43:
 					consume();
-					tkns.push_back(token{ 16 });
+					tkns.push_back({ 16 });
 					break;
 				case 61:
 					consume();
-					tkns.push_back(token{ 17 });
+					tkns.push_back({ 17 });
 					break;
 				default:
-					tkns.push_back(token{ 5 });
+					tkns.push_back({ 5 });
 				}
 			}
 			else if (peek().val == '-') {
@@ -137,43 +219,43 @@ public:
 				switch (peek().val) {
 				case 62:
 					consume();
-					tkns.push_back(token{ 12 });
+					tkns.push_back({ 12 });
 					break;
 				case 61:
 					consume();
-					tkns.push_back(token{ 13 });
+					tkns.push_back({ 13 });
 					break;
 				case 45:
 					consume();
-					tkns.push_back(token{ 15 });
+					tkns.push_back({ 15 });
 					break;
 				default:
-					tkns.push_back(token{ 6 });
+					tkns.push_back({ 6 });
 				}
 			}
 			else if (peek().val == '/') {
 				consume();
-				tkns.push_back(token{ 7 });
+				tkns.push_back({ 7 });
 			}
 			else if (peek().val == '*') {
 				consume();
 				switch (peek().val) {
 				case 61:
 					consume();
-					tkns.push_back(token{ 18 });
+					tkns.push_back({ 18 });
 					break;
 				case 42:
 					consume();
 					switch (peek().val) {
 					case 61:
 						consume();
-						tkns.push_back(token{ 21 });
+						tkns.push_back({ 21 });
 					default:
-						tkns.push_back(token{ 19 });
+						tkns.push_back({ 19 });
 					}
 					break;
 				default:
-					tkns.push_back(token{ 8 });
+					tkns.push_back({ 8 });
 				}
 			}
 			else if (peek().val == '&') {
@@ -181,26 +263,26 @@ public:
 				switch (peek().val) {
 				case 42:
 					consume();
-					tkns.push_back(token{ 9 });
+					tkns.push_back({ 9 });
 					break;
 				case 33:
 					consume();
-					tkns.push_back(token{ 10 });
+					tkns.push_back({ 10 });
 					break;
 				case 62:
 					consume();
-					tkns.push_back(token{ 11 });
+					tkns.push_back({ 11 });
 					break;
 				case 38:
 					consume();
-					tkns.push_back(token{ 20 });
+					tkns.push_back({ 20 });
 					break;
 				case 61:
 					consume();
-					tkns.push_back(token{ 22 });
+					tkns.push_back({ 22 });
 					break;
 				default:
-					tkns.push_back(token{ 14 });
+					tkns.push_back({ 14 });
 				}
 			}
 			else if (peek().val == '<') {
@@ -211,14 +293,14 @@ public:
 					switch (peek().val) {
 					case 61:
 						consume();
-						tkns.push_back(token{ 25 });
+						tkns.push_back({ 25 });
 						break;
 					default:
-						tkns.push_back(token{ 24 });
+						tkns.push_back({ 24 });
 					}
 					break;
 				default:
-					tkns.push_back(token{ 23 });
+					tkns.push_back({ 23 });
 				}
 			}
 			else if (peek().val == '>') {
@@ -229,14 +311,14 @@ public:
 					switch (peek().val) {
 					case 61:
 						consume();
-						tkns.push_back(token{ 28 });
+						tkns.push_back({ 28 });
 						break;
 					default:
-						tkns.push_back(token{ 27 });
+						tkns.push_back({ 27 });
 					}
 					break;
 				default:
-					tkns.push_back(token{ 26 });
+					tkns.push_back({ 26 });
 				}
 			}
 			else if (peek().val == '|') {
@@ -244,14 +326,14 @@ public:
 				switch (peek().val) {
 				case 61:
 					consume();
-					tkns.push_back(token{ 31 });
+					tkns.push_back({ 31 });
 					break;
 				case 124:
 					consume();
-					tkns.push_back(token{ 30 });
+					tkns.push_back({ 30 });
 					break;
 				default:
-					tkns.push_back(token{ 29 });
+					tkns.push_back({ 29 });
 				}
 			}
 			else if (peek().val == '^') {
@@ -259,14 +341,14 @@ public:
 				switch (peek().val) {
 				case 61:
 					consume();
-					tkns.push_back(token{ 34 });
+					tkns.push_back({ 34 });
 					break;
 				case 94:
 					consume();
-					tkns.push_back(token{ 33 });
+					tkns.push_back({ 33 });
 					break;
 				default:
-					tkns.push_back(token{ 32 });
+					tkns.push_back({ 32 });
 				}
 			}
 			else if (peek().val == '=') {
@@ -274,10 +356,10 @@ public:
 				switch (peek().val) {
 				case '=':
 					consume();
-					tkns.push_back(token{ 36 });
+					tkns.push_back({ 36 });
 					break;
 				default:
-					tkns.push_back(token{ 35 });
+					tkns.push_back({ 35 });
 				}
 			}
 			else if (peek().val == '[') {
@@ -290,45 +372,45 @@ public:
 			else if (peek().val == '@') {
 				consume();
 				while (peek().val != ' ' && peek().val != '\n') buf.push_back(consume());
-				tkns.push_back(token{ 37,buf });
+				tkns.push_back({ 37,buf });
 			}
 			else if (peek().val == '{') {
 				consume();
-				tkns.push_back(token{ 42 });
+				tkns.push_back({ 42 });
 			}
 			else if (peek().val == '}') {
 				consume();
-				tkns.push_back(token{ 43 });
+				tkns.push_back({ 43 });
 			}
 			else if (peek().val == '(') {
 				consume();
-				tkns.push_back(token{ 44 });
+				tkns.push_back({ 44 });
 			}
 			else if (peek().val == ')') {
 				consume();
-				tkns.push_back(token{ 45 });
+				tkns.push_back({ 45 });
 			}
 			else if (peek().val == '$') {
 				consume();
-				tkns.push_back(token{ 47 });
+				tkns.push_back({ 47 });
 			}
 			else if (peek().val == ',') {
 				consume();
-				tkns.push_back(token{ 57 });
+				tkns.push_back({ 57 });
 			}
 			else if (peek().val == '%') {
 				consume();
 				switch (peek().val) {
 				case 61:
 					consume();
-					tkns.push_back(token{ 66 });
+					tkns.push_back({ 66 });
 					break;
 				case 62:
 					consume();
-					tkns.push_back(token{ 62 });
+					tkns.push_back({ 62 });
 					break;
 				default:
-					tkns.push_back(token{ 63 });
+					tkns.push_back({ 63 });
 				}
 			}
 			else {
@@ -440,7 +522,7 @@ public:
 std::string load_file(std::string name) {
 	std::ifstream file(name);
 	if (!file.is_open()) {
-		std::cerr << "\033[31mFile failed to open[Crashing program]\n\033[0m";
+		std::cerr << "\033[31mFile" << name << "failed to open[Crashing program]\n\033[0m";
 		std::exit(1);
 	}
 	std::vector<std::string> out;
@@ -738,6 +820,9 @@ unsigned find_class(Classes& classes, std::string name) {
 	}
 	return count;
 }
+bool does_class_exist(Classes& classes, std::string name) {
+	return !(find_class(classes, name) == classes.size());
+}
 struct Constant {
 	std::string name;
 	std::string value;
@@ -763,10 +848,10 @@ unsigned char is_what(Types& types, Functions& functions, Variables& variables,C
 }
 struct node {
 	unsigned char type;
-	token tkn;
+	Token tkn;
 	node* nd_one;
 	node* nd_two;
-	node(token tkn) {
+	node(Token tkn) {
 		this->type = 1;
 		this->tkn = tkn;
 		this->nd_one = nullptr;
@@ -814,6 +899,22 @@ struct scope {
 	bool is_class=false;
 	bool is_function = false;
 };
+struct Library {
+	std::string name;
+	Classes classes;
+	Functions functions;
+	Procedures procedures;
+	bool includeth_function(std::string name) {
+		return does_function_exist(functions, name);
+	}
+	bool includeth_procedure(std::string name) {
+		return does_procedure_exist(procedures, name);
+	}
+	bool includeth_class(std::string name) {
+		return does_class_exist(classes, name);
+	}
+};
+typedef std::vector<Library> Libraries;
 typedef std::vector<scope> Scopes;
 typedef unsigned char language_type;
 typedef unsigned char system_type;
@@ -827,16 +928,76 @@ void print(Tokens& tkns) {
 void print(Tokens& tkns,unsigned long long& index) {
 	std::cout << index << ':' << tkns.at(index).type << ':' << tkns.at(index).val << '\n';
 }
+struct binding_token {
+	unsigned char type;
+	std::string value;
+};
+typedef std::vector<binding_token> BTokens;
+class Binding_lexer {
+	unsigned long long index;
+	std::string src;
+	Char peek(unsigned long long ahead = 0) {
+		if ((index + ahead) < src.size()) return Char{ 1,src.at(index + ahead) };
+		return { 0 };
+	}
+	char consume() {
+		return src.at(index++);
+	}
+public:
+	Binding_lexer(std::string name) {
+		src = load_file(name+"_bindings.data");
+	}
+	BTokens tokenize() {
+		BTokens out;
+		std::string buf = "";
+		while (peek().exist) {
+			if (isalpha(peek().val)) {
+				buf.push_back(consume());
+				while (peek().exist&&(isalnum(peek().val) || peek().val == '_')) buf.push_back(consume());
+				switch (loose_match(5, buf, char*, "class","end","lib","func","proc","member")) {
+				case 0:
+					out.push_back({ 6 });
+					break;
+				case 1:
+					out.push_back({ 2 });
+					break;
+				case 2:
+					out.push_back({ 3 });
+					break;
+				case 3:
+					out.push_back({ 4 });
+					break;
+				case 4:
+					out.push_back({ 5 });
+					break;
+				case 5:
+					out.push_back({ 7 });
+					break;
+				default:
+					out.push_back({ 0,buf });
+				}
+				buf.clear();
+			}
+			else if (peek().val == '*') out.push_back({ 8 });
+			else if (peek().val == '\n') out.push_back({ 1 });
+			else consume();
+		}
+		return out;
+	}
+};
 class compiler {
 	Types types;
 	Classes classes;
 	Functions functions;
 	Procedures procedures;
+	Libraries libs;
 	Scopes scopes;
 	flags mode;
+	std::string project;
 	unsigned long long index;
 public:
-	compiler() {
+	compiler(std::string name) {
+		project = name + '_';
 		types = Types();
 		types.push_back(Type{ "byte",'b' });
 		types.push_back(Type{ "char",'c' });
@@ -849,7 +1010,6 @@ public:
 		types.push_back(Type{ "long",'I' });
 		types.push_back(Type{ "Ullong",'l' });
 		types.push_back(Type{ "llong",'L' });
-		types.push_back(Type{ "str",'s' });
 		scopes.push_back({});
 	}
 	Args get_args(std::ofstream& file,Tokens& tkns) {
@@ -931,9 +1091,7 @@ public:
 		return out;
 	}
 	void setup_cpp(std::ofstream& file) {
-		file << "#include <string>\n";
 		file << "#include <iostream>\n";
-		file << "typedef std::string str;\n";
 		//file << "struct byte{\n";
 		//file << "unsigned char data;\n";
 		//file << "byte(unsigned char);\n";
@@ -956,12 +1114,10 @@ public:
 		//Lfile << "}\n";
 		//Lfile.close();
 	}
-	void setup_c() {
-		std::ofstream Lfile("language_defaults.h");
-		Lfile << "#ifndef LANGUAGE_DEFAULTS\n#define LANGUAGE_DEFAULTS\n#include <stdio.h>\n#include <stdlib.h>\ntypedef unsigned char byte;\n";
-		Lfile << "typedef signed char Sbyte;\ntypedef unsigned short Umini;\ntypedef short mini;\ntypedef unsigned Ucint;\ntypedef int cint;\n";
-		Lfile << "typedef unsigned long Ulong;\ntypedef unsigned long long Ullong;\ntypedef long long llong;\n#endif";
-		Lfile.close();
+	void setup_c(std::ofstream& file) {
+		file << "#include <stdio.h>\n#include <stdlib.h>\ntypedef unsigned char byte;\n";
+		file << "typedef signed char Sbyte;\ntypedef unsigned short Umini;\ntypedef short mini;\ntypedef unsigned Ucint;\ntypedef int cint;\n";
+		file << "typedef unsigned long Ulong;\ntypedef unsigned long long Ullong;\ntypedef long long llong;";
 	}
 	bool doth_constant_exist(std::string name) {
 		unsigned index = 0;
@@ -986,6 +1142,26 @@ public:
 	bool doth_argument_exist(std::string name) {
 		if (!functions.size()) return 0;
 		return does_argument_exist(functions.at(functions.size() - 1).args, name);
+	}
+	bool is_library_included(std::string name) {
+		unsigned index = 0;
+		while (index < libs.size()) if (libs.at(index++).name == name) return 1;
+		return 0;
+	}
+	bool is_function_in_library(std::string name) {
+		unsigned index = 0;
+		while (index < libs.size()) if(libs.at(index++).includeth_function(name)) return 1;
+		return 0;
+	}
+	bool is_procedure_in_library(std::string name) {
+		unsigned index = 0;
+		while (index < libs.size()) if (libs.at(index++).includeth_procedure(name)) return 1;
+		return 0;
+	}
+	bool is_class_in_library(std::string name) {
+		unsigned index = 0;
+		while (index < libs.size()) if (libs.at(index++).includeth_class(name)) return 1;
+		return 0;
 	}
 	Argument& get_argument(std::string name) {
 		return functions.at(functions.size() - 1).args.at(find_argument(functions.at(functions.size() - 1).args, name));
@@ -1031,8 +1207,145 @@ public:
 		unsigned count = 0;
 		while (count < cl.members.size()) file << "this->" << cl.members.at(count).name << '=' << name << '.' << cl.members.at(count++).name << ";\n" << indent(scopes.size() - 1);
 	}
+	void compile_method_arguments(std::ofstream& file, Arguments& args,std::string name) {
+		unsigned index = 0;
+		file << '(' << name << "* this";
+		while (index < args.size()) {
+			file << ',' << types.at(args.at(index).value_type).name;
+			if (args.at(index).type_of_argument) file << '*';
+			file << ' ';
+			file << args.at(index++).name;
+		}
+		file << ')';
+	}
+	unsigned char read_argument_binding(BTokens& tkns, unsigned long long& index, Arguments& args) {
+		while (index < tkns.size()) {
+			switch (tkns.at(index).type) {
+			case 0:
+				args.push_back({ find_type(types,tkns.at(index).value) });
+				index++;
+				if (tkns.at(index).type == 8) {
+					args.at(args.size() - 1).type_of_argument = 3;
+					index++;
+				}
+				if (tkns.at(index).type) return 1;
+				args.at(args.size() - 1).name = tkns.at(index).value;
+				break;
+			case 1:
+				return 0;
+			default:
+				return 1;
+			}
+			index++;
+		}
+	}
+	unsigned char read_function_binding(BTokens& tkns, unsigned long long& index, Functions& funcs) {
+		if (tkns.at(index).type) return 1;
+		funcs.push_back({ tkns.at(index++).value });
+		if (tkns.at(index).type) return 1;
+		funcs.at(funcs.size() - 1).Rtype = find_type(types, tkns.at(index++).value);
+		if (tkns.at(index).type == 8) {
+			funcs.at(funcs.size() - 1).ptr_type = 3;
+			index++;
+		}
+		if (read_argument_binding(tkns, index, funcs.at(funcs.size() - 1).args)) return 1;
+		return 0;
+	}
+	unsigned char read_procedure_binding(BTokens& tkns, unsigned long long& index, Procedures& procs) {
+		if (tkns.at(index).type) return 1;
+		procs.push_back({ tkns.at(index++).value });
+		if (read_argument_binding(tkns, index, procs.at(procs.size() - 1).args)) return 1;
+		return 0;
+	}
+	unsigned char read_member_binding(BTokens& tkns, unsigned long long& index, Variables& members) {
+		if (tkns.at(index).type) return 1;
+		members.push_back({ find_type(types, tkns.at(index++).value) });
+		if (tkns.at(index).type == 8) {
+			members.at(members.size() - 1).ptr_type = 3;
+			index++;
+		}
+		if (tkns.at(index).type) return 1;
+		members.at(members.size() - 1).name = tkns.at(index).value;
+		if (!(tkns.at(index).type == 1)) return 1;
+		return 0;
+	}
+	unsigned char read_class_binding(BTokens& tkns, unsigned long long& index,Classes& classes) {
+		if (tkns.at(index).type) return 1;
+		classes.push_back({ tkns.at(index).value });
+		index++;
+		if (!(tkns.at(index).type == 1)) return 1;
+		while (index < tkns.size()) {
+			switch (tkns.at(index).type) {
+			case 2:
+				index++;
+				return 0;
+			case 4:
+				index++;
+				read_function_binding(tkns, index, classes.at(classes.size() - 1).methods);
+				break;
+			case 5:
+				index++;
+				read_procedure_binding(tkns, index, classes.at(classes.size() - 1).procedures);
+				break;
+			case 7:
+				index++;
+				read_member_binding(tkns, index, classes.at(classes.size() - 1).members);
+				break;
+			default:
+				return 1;
+			}
+		}
+		return 1;
+	}
+	unsigned char read_bindings(std::string name) {
+		BTokens tkns;
+		libs.push_back({ name });
+		{
+			Binding_lexer binds(name);
+			tkns = binds.tokenize();
+		}
+		unsigned long long index = 0;
+		while (index < tkns.size()) {
+			switch (tkns.at(index).type) {
+			case 3:
+				index++;
+				if (tkns.at(index).type) return 1;
+				if (!is_library_included(tkns.at(index).value)) read_bindings(tkns.at(index).value);
+				index++;
+				if (!(tkns.at(index).type == 1)) return 1;
+				break;
+			case 4:
+				index++;
+				if (read_function_binding(tkns, index, libs.at(libs.size() - 1).functions)) return 1;
+				functions.push_back(libs.at(libs.size() - 1).functions.at(libs.at(libs.size() - 1).functions.size() - 1));
+				break;
+			case 5:
+				index++;
+				if (read_procedure_binding(tkns, index, libs.at(libs.size() - 1).procedures)) return 1;
+				procedures.push_back(libs.at(libs.size() - 1).procedures.at(libs.at(libs.size() - 1).procedures.size() - 1));
+				break;
+			case 6:
+				index++;
+				if (read_class_binding(tkns, index,libs.at(libs.size()-1).classes)) return 1;
+				classes.push_back(libs.at(libs.size() - 1).classes.at(libs.at(libs.size() - 1).classes.size() - 1));
+				break;
+			default:
+				return 1;
+			}
+			index++;
+		}
+		return 0;
+	}
 	unsigned long long compile_cpp(Tokens tkns,std::string& name,flags& values,system_type sys) {
 		index = 0;
+		print(tkns);
+		std::ofstream file(name + ".cpp");
+		if (!file.is_open()) {
+			std::cout << "File cannot be openned\n!";
+			return 2;
+		}
+		unsigned char stream_type = 0;
+		unsigned long long last_var_type = 0;
 		bool inClass = false;
 		bool isMember = false;
 		bool inFunction = false;
@@ -1041,17 +1354,12 @@ public:
 		bool afterAssignment = false;
 		bool afterReturn = false;
 		bool inProcedure = false;
+		bool afterImports = false;
 		//bool afterOperation = false;
-		print(tkns);
-		unsigned char stream_type = 0;
-		unsigned long long last_var_type = 0;
-		std::ofstream file(name + ".cpp");
-		if (!file.is_open()) {
-			std::cout << "File cannot be opened\n!";
-			return 2;
-		}
-		file << "#include <declarations.hpp>\n";
+		if (values.get(0)) file << "#include <" + project + ".hpp>\n";
+		else file << "#include <declarations.hpp>\n";
 		while (index < tkns.size()) {
+			if (inClass || inFunction || inProgram || inProcedure || afterImports) afterImports = true;
 			print(tkns, index);
 			switch (tkns[index].type) {
 			case 0:
@@ -1548,8 +1856,8 @@ public:
 				index++;
 				if (!(!tkns.at(index).type)&&(!tkns.at(index+1).type)) return 1;
 				{
-					token ret = tkns.at(index);
-					token name = tkns.at(index + 1);
+					Token ret = tkns.at(index);
+					Token name = tkns.at(index + 1);
 					index+=2;
 					Arguments args;
 					unsigned char pointer_type = 0;
@@ -1603,7 +1911,7 @@ public:
 				index++;
 				if (tkns.at(index).type) return 1;
 				{
-					token name = tkns.at(index);
+					Token name = tkns.at(index);
 					index++;
 					Arguments args;
 					unsigned char pointer_type = 0;
@@ -1861,6 +2169,13 @@ public:
 				index++;
 				if (!(tkns.at(index).type == 4)) return 1;
 				break;
+			case 69:
+				if (afterImports) return 1;
+				index++;
+				if (tkns.at(index).type) return 1;
+				if (!is_library_included(tkns.at(index++).val)) read_bindings(tkns.at(index-1).val);
+				if (!(tkns.at(index).type == 4)) return 1;
+				break;
 			}
 			index++;
 		}
@@ -1873,8 +2188,168 @@ public:
 	unsigned long long compile_java() {
 		return pass();
 	}
-	unsigned long long compile_c() {
-		return pass();
+	unsigned long long compile_c(Tokens tkns,std::string& name,flags& values,system_type sys) {
+		index = 0;
+		std::ofstream file(name + ".c");
+		if (!file.is_open()) {
+			std::cout << "File cannot be openned!\n";
+			return 2;
+		}
+		if (values.get(0)) file << "#include <" + project + ".h>\n";
+		else file << "#include <declarations.h>\n";
+		bool inClass = false;
+		bool inFunction = false;
+		bool inProcedure = false;
+		bool inProgram = false;
+		bool isMember = false;
+		bool afterReturn = false;
+		bool afterImports = false;
+		while (index < tkns.size()) {
+			if (inClass || inFunction || inProcedure || inProgram || afterImports) afterImports = 1;
+			switch (tkns.at(index).type) {
+			case 0:
+				switch (tkns.at(index + 1).type) {
+				case 0:
+					{
+						unsigned long long type = find_type(types, tkns.at(index).val);
+						if (type == types.size()) return 1;
+						if (isMember) classes.at(classes.size() - 1).members.push_back({ type,0,tkns.at(index + 1).val });
+						else {
+							file << types.at(type).name << ' ' << tkns.at(index + 1).val;
+							scopes.at(scopes.size() - 1).variables.push_back({ type,0,tkns.at(index + 1).val });
+						}
+						index++;
+					}
+					break;
+				case 9:
+					if (!tkns.at(index + 2).type) return 1;
+					{
+						unsigned long long type = find_type(types, tkns.at(index).val);
+						unsigned char ptr_type = 1;
+						if (mode.get(2)) ptr_type = 3;
+						else if (mode.get(0)) ptr_type = 2;
+						if (type == types.size()) return 1;
+						if (isMember) classes.at(classes.size() - 1).members.push_back({ type,1,tkns.at(index + 2).val });
+						else {
+							file << types.at(type).name << "* " << tkns.at(index + 2).val;
+							scopes.at(scopes.size() - 1).variables.push_back({ type,1,tkns.at(index + 2).val });
+						}
+						index += 2;
+					}
+					break;
+				case 12:
+					if (!tkns.at(index + 2).type) return 1;
+
+					break;
+				default:
+					break;
+				}
+				break;
+			case 1:
+				afterReturn = true;
+				{
+					unsigned count = 0;
+					while (count < scopes.at(scopes.size() - 1).variables.size()) {
+						if (scopes.at(scopes.size() - 1).variables.at(count).ptr_type) {
+							file << "free(" << scopes.at(scopes.size() - 1).variables.at(count).name << ");\n";
+							if (inClass) file << indent(scopes.size() - 2);
+							else file << indent(scopes.size() - 1);
+						}
+						count++;
+					}
+				}
+				file << "return ";
+				break;
+			case 4:
+				file << ";\n";
+				if ((tkns.at(index + 1).type == 39)&&(!(scopes.at(scopes.size()-1).variables.size()))) {
+					if (inClass) file << indent(scopes.size() - 3);
+					else file << indent(scopes.size() - 2);
+				}
+				else {
+					if (inClass) file << indent(scopes.size() - 2);
+					else file << indent(scopes.size() - 1);
+				}
+				break;
+			case 38:
+				file << "{\n";
+				if (inClass) file << indent(scopes.size() - 1);
+				else file << indent(scopes.size());
+				scopes.push_back({});
+				break;
+			case 39:
+				if (!afterReturn) {
+					while (scopes.at(scopes.size() - 1).variables.size() > 0) {
+						if (scopes.at(scopes.size() - 1).variables.at(scopes.at(scopes.size() - 1).variables.size() - 1).ptr_type) {
+							file << "free(" << scopes.at(scopes.size() - 1).variables.at(scopes.at(scopes.size() - 1).variables.size() - 1).name << ");\n";
+							if (scopes.at(scopes.size() - 1).variables.size() > 1) {
+								if (inClass) file << indent(scopes.size() - 2);
+								else file << indent(scopes.size() - 1);
+							}
+							else {
+								if (inClass) file << indent(scopes.size() - 3);
+								else file << indent(scopes.size() - 2);
+							}
+						}
+						scopes.at(scopes.size() - 1).variables.pop_back();
+					}
+				}
+				else afterReturn = false;
+				scopes.pop_back();
+				file << "}\n";
+				if (inClass) file << indent(scopes.size() - 2);
+				else file << indent(scopes.size() - 1);
+				break;
+			case 40:
+				file << "int main(int argc,char* argv[])";
+				inProgram = true;
+				break;
+			case 59:
+				if (!(tkns.at(index + 1).type == 24)) return 1;
+				index += 2;
+				switch (tkns.at(index).type) {
+				case 0:
+					if (doth_variable_exist(tkns.at(index).val)) {
+						switch (scopes.at(get_variable_scope(tkns.at(index).val)).variables.at(find_variable(scopes.at(get_variable_scope(tkns.at(index).val)).variables, tkns.at(index).val)).type) {
+						case 1:
+							if (scopes.at(get_variable_scope(tkns.at(index).val)).variables.at(find_variable(scopes.at(get_variable_scope(tkns.at(index).val)).variables, tkns.at(index).val)).ptr_type) file << "printf(\"%s\"," << tkns.at(index).val << ')';
+							else file << "printf(\"%c\"," << tkns.at(index).val << ')';
+							break;
+						case 2:
+						case 4:
+						case 6:
+						case 8:
+						case 10:
+							if (scopes.at(get_variable_scope(tkns.at(index).val)).variables.at(find_variable(scopes.at(get_variable_scope(tkns.at(index).val)).variables, tkns.at(index).val)).ptr_type) file << "printf(\"%p\"," << tkns.at(index).val << ')';
+							else file << "printf(\"%lld\"," << tkns.at(index).val << ')';
+							break;
+						case 0:
+						case 3:
+						case 5:
+						case 7:
+						case 9:
+							if (scopes.at(get_variable_scope(tkns.at(index).val)).variables.at(find_variable(scopes.at(get_variable_scope(tkns.at(index).val)).variables, tkns.at(index).val)).ptr_type) file << "printf(\"%p\"," << tkns.at(index).val << ')';
+							else file << "printf(\"%llu\"," << tkns.at(index).val << ')';
+							break;
+						default:
+							return 1;
+						}
+					}
+					break;
+				case 2:
+					file << "printf(\"%lld\"," << tkns.at(index).val << ')';
+					break;
+				case 3:
+					file << "printf(\"" << tkns.at(index).val << "\")";
+					break;
+				default:
+					return 1;
+				}
+				break;
+			}
+			index++;
+		}
+		return 0;
 	}
 	void compile_class_cpp(std::ofstream& file,unsigned class_index) {
 		file << "\nstruct " << classes.at(class_index).name << '{';
@@ -1903,45 +2378,136 @@ public:
 		}
 		file << "\n}";
 	}
-	void create_hpp() {
-		std::ofstream file("declarations.hpp");
+	void create_hpp(flags& values) {
+		std::ofstream file;
+		if (values.get(0)) file.open(project + ".hpp");
+		else file.open("declarations.hpp");
 		setup_cpp(file);
 		unsigned index = 0;
-		while (index < classes.size()) {
-			compile_class_cpp(file, index);
-			index++;
-		}
+		while (index < libs.size()) file << "\n#include <" + libs.at(index++).name << ".hpp>";
+		index = 0;
+		while (index < classes.size()) if(!is_class_in_library(classes.at(index).name)) compile_class_cpp(file, index++);
 		index = 0;
 		while (index < functions.size()) {
-			file << '\n' << types.at(functions.at(index).Rtype).name;
-			if (functions.at(index).ptr_type) {
-				file << '*';
+			if (!is_function_in_library(functions.at(index).name)) {
+				file << '\n' << types.at(functions.at(index).Rtype).name;
+				if (functions.at(index).ptr_type) file << '*';
+				file << ' ' << functions.at(index).name;
+				compile_arguments(file, functions.at(index++).args);
+				file << ';';
 			}
-			file << ' ' << functions.at(index).name;
-			compile_arguments(file, functions.at(index).args);
-			file << ';';
-			index++;
 		}
 		index = 0;
 		while (index < procedures.size()) {
-			file << "\nvoid " << procedures.at(index).name;
-			compile_arguments(file, procedures.at(index).args);
-			file << ';';
-			index++;
+			if (!is_procedure_in_library(procedures.at(index).name)) {
+				file << "\nvoid " << procedures.at(index).name;
+				compile_arguments(file, procedures.at(index++).args);
+				file << ';';
+			}
 		}
 	}
 	void compile_class_c(std::ofstream& file, unsigned class_index) {
 		file << "\ntypedef struct " << classes.at(class_index).name << "{";
 		unsigned index = 0;
 		while (index < classes.at(class_index).members.size()) {
-			file << '\n' << indent(1) << classes.at(class_index).members.at(index).type;
+			file << '\n' << indent(1) << types.at(classes.at(class_index).members.at(index).type).name;
 			if (classes.at(class_index).members.at(index).ptr_type) file << '*';
 			file << ' ' << classes.at(class_index).members.at(index).name << ";";
 			index++;
 		}
 		file << "\n};";
 		index = 0;
-
+		while (index < classes.at(class_index).methods.size()) {
+			file << '\n' << types.at(classes.at(class_index).methods.at(index).Rtype).name;
+			if (classes.at(class_index).methods.at(index).ptr_type) file << '*';
+			file << ' ' << classes.at(class_index).name << '_' << classes.at(class_index).methods.at(index).name;
+			compile_method_arguments(file, classes.at(class_index).methods.at(index++).args, classes.at(class_index).name);
+			file << ';';
+		}
+		index = 0;
+		while (index < classes.at(class_index).procedures.size()) {
+			file << "\nvoid " << classes.at(class_index).name << '_' << classes.at(class_index).procedures.at(index).name;
+			compile_method_arguments(file, classes.at(class_index).procedures.at(index++).args, classes.at(class_index).name);
+			file << ';';
+		}
+	}
+	void create_h(flags& values) {
+		std::ofstream file;
+		if (values.get(0)) file.open(project + ".h");
+		else file.open("declarations.h");
+		setup_c(file);
+		unsigned index = 0;
+		while (index < libs.size()) file << "\n#include <" + libs.at(index++).name << ".h>";
+		index = 0;
+		while (index < classes.size()) if(!is_class_in_library(classes.at(index).name)) compile_class_c(file, index++);
+		index = 0;
+		while (index < functions.size()) {
+			if (!is_function_in_library(functions.at(index).name)) {
+				file << '\n' << types.at(functions.at(index).Rtype).name;
+				if (functions.at(index).ptr_type) file << '*';
+				file << ' ' << functions.at(index).name;
+				compile_arguments(file, functions.at(index++).args);
+				file << ';';
+			}
+		}
+		index = 0;
+		while (index < procedures.size()) {
+			if (!is_procedure_in_library(procedures.at(index).name)) {
+				file << "\nvoid " << procedures.at(index).name;
+				compile_arguments(file, procedures.at(index++).args);
+				file << ';';
+			}
+		}
+		file.close();
+	}
+	void generate_member_binding(std::ofstream& file, Variables& members) {
+		unsigned index = 0;
+		while (index < members.size()) {
+			file << "\nmember " << types.at(members.at(index).type).name << ' ';
+			if (members.at(index).ptr_type) file << "* ";
+			file << members.at(index).name;
+		}
+	}
+	void generate_argument_binding(std::ofstream& file, Arguments args) {
+		unsigned index = 0;
+		while (index < args.size()) {
+			file << ' ' << types.at(args.at(index).value_type).name<<' ';
+			if (args.at(index).type_of_argument) file << "* ";
+			file << args.at(index++).name;
+		}
+	}
+	void generate_function_binding(std::ofstream& file,Function& func) {
+		file << "\nfunction " << func.name << ' ' << types.at(func.Rtype).name;
+		if (func.ptr_type) file << " *";
+		generate_argument_binding(file, func.args);
+	}
+	void generate_procedure_binding(std::ofstream& file, Procedure& proc) {
+		file << "\nprocedure " << proc.name;
+		generate_argument_binding(file, proc.args);
+	}
+	void generate_class_binding(std::ofstream& file,Class& class_) {
+		file << "\nclass " << class_.name;
+		generate_member_binding(file, class_.members);
+		unsigned index = 0;
+		while (index < class_.methods.size()) generate_function_binding(file, class_.methods.at(index++));
+		index = 0;
+		while (index < class_.procedures.size()) generate_procedure_binding(file, class_.procedures.at(index++));
+		file << "\nend";
+	}
+	void generate_bindings() {
+		std::ofstream file(project+"_bindings.data");
+		unsigned index = 0;
+		while (index < libs.size()) {
+			if (!index) file << '\n';
+			file << "lib " << libs.at(index++).name;
+		}
+		index = 0;
+		while (index < classes.size()) generate_class_binding(file, classes.at(index++));
+		index = 0;
+		while (index < functions.size()) generate_function_binding(file, functions.at(index++));
+		index = 0;
+		while (index < procedures.size()) generate_procedure_binding(file, procedures.at(index++));
+		file.close();
 	}
 };
 template<class T> void put_in_vector(std::vector<T>& des, std::vector<T> loc) {
@@ -1978,8 +2544,8 @@ std::vector<std::string> get_files_in_path_with_ext(std::filesystem::path path, 
 		else if ((*dirs).path().extension() == ext) out.push_back((*dirs).path().stem().string());
 	}
 }
-void compile(language_type lang, system_type os, flags& values,std::vector<std::string>& files) {
-	compiler stuff;
+void compile(language_type lang, system_type os, flags& values,std::vector<std::string>& files,std::string name) {
+	compiler stuff(name);
 	unsigned index = 0;
 	lexer lex("");
 	while (index < files.size()) {
@@ -1992,14 +2558,26 @@ void compile(language_type lang, system_type os, flags& values,std::vector<std::
 				std::cout<<"Failed to compile: "<<files.at(index)<<".aur due to exception\n";
 			}
 			break;
+		case 1:
+			try {
+				if (stuff.compile_c(lex.tokenize(), files.at(index), values, os)) std::cout << "Failed to compile: " << files.at(index) + ".aur\n";
+			}
+			catch (...) {
+				std::cout << "Failed to compile: " << files.at(index) << ".aur due to exception\n";
+			}
+			break;
 		}
 		index++;
 	}
 	switch (lang) {
 	case 0:
-		stuff.create_hpp();
+		stuff.create_hpp(values);
+		break;
+	case 1:
+		stuff.create_h(values);
 		break;
 	}
+	if (values.get(0)) stuff.generate_bindings();
 }
 int main(int argc, char* argv[]) {
 	language_type lang = 0;
@@ -2013,19 +2591,35 @@ int main(int argc, char* argv[]) {
 	load_flags(arguments, argv, argc);
 	std::vector<std::string> files;
 	flags values;
-	unsigned long long count = 1;
+	unsigned long long count = 2;
 	while (count < arguments.size()) {
-		temp = arguments.at(count);
-		if (temp == "-java") lang = 1;
-		else if (temp == "-cpp") lang = 0;
-		else if (temp == "-linux") operating = 1;
-		else if (temp == "-windows") operating = 0;
-		else files.push_back(temp);
-		count++;
+		temp = arguments.at(count++);
+		switch (loose_match(6, temp,char*, "-c", "-cpp", "-linux", "-windows","-lib","-app")) {
+		case 0:
+			lang = 1;
+			break;
+		case 1:
+			lang = 0;
+			break;
+		case 2:
+			operating = 1;
+			break;
+		case 3:
+			operating = 0;
+			break;
+		case 4:
+			values.store(0, 1);
+			break;
+		case 5:
+			values.store(0, 0);
+			break;
+		default:
+			files.push_back(temp);
+		}
 	}
 	if (!files.size()) {
 		std::cout << "No files supplied!\n";
 		return 1;
 	}
-	compile(lang, operating, values, files);
+	compile(lang, operating, values, files, arguments.at(1));
 }
