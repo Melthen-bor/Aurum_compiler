@@ -1,4 +1,4 @@
-# WARNING: THIS IS A PROOF OF CONCEPT IT WAS LAZILY IMPLEMENTED AND AS SUCH IT DOES NOT WORK WELL AND IT WILL BE REWITTEN EVENTUALLY IT DOES NOT HAVE A PROPER PARSER AS IT WAS HASTILY AND LAZILY WRITTEN BACK WHEN I HAD LESS EXPERIENCE WITH COMPILER DEVELOPMENT
+# WARNING: This is was hastily written and as such it will not alwayws work
 This is a compiler and preprocessor for simple(depends on definition) programming language
 
 can compile to:
