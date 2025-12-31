@@ -1,0 +1,12 @@
+@NO_MANGLE !Turns off Name Mangling
+@NO_BIN !Turns off code generation for the file
+!Bindings for stdio
+import basic_types
+typedef cfile as u64;
+function fopen(cstr,cstr) cfile;
+function fgets(cstr,cint,cfile) cstr;
+function  fputc(cint,cfile) cint;
+function  fgetc(cfile) cint;
+function  fclose(cfile) cint;
+function  printf(cstr,varargs) cint;
+function  fprintf(cfile,cstr,varargs) cint;

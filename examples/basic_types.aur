@@ -1,0 +1,6 @@
+@NO_MANGLE
+!Bindings for basic c types
+typedef cstr as u8 &*;
+typedef handle as u0 &*;
+typedef size as u64;
+typedef cint as u32;

@@ -1,0 +1,11 @@
+@NO_MANGLE
+!Bindings for memory related functions in c
+import basic_types
+function malloc(size) handle;
+function calloc(size,size) handle;
+function realloc(handle,size) handle;
+function memset(handle,cint,size) handle;
+function memcpy(handle,handle,size) handle;
+! Same as
+! function free(handle) u0;
+procedure free(handle);
