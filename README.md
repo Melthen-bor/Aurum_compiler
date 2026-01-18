@@ -1,4 +1,4 @@
-# WARNING: This is was hastily written and as such it will not alwayws work
+# WARNING: This is was hastily written and as such it will not always work
 This is a compiler and preprocessor for simple(depends on definition) programming language
 
 can compile to:
