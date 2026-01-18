@@ -64,9 +64,7 @@ namespace aurum{
 			CLR,
 			ARG_SEPERATOR,
 			MEMBER,
-			SYSOUT,
 			PROCEDURE,
-			SYSIN,
 			GET_THIS_TYPE,
 			MOD_OP,
 			CREATE,
@@ -89,7 +87,8 @@ namespace aurum{
 			DIV_ASS,
 			CHAR_LIT,
 			TYPEDEF,
-			VARARGS
+			VARARGS,
+			OPERATOR
 		};
 		struct token {
 			token_type type;

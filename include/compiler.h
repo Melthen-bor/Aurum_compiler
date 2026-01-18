@@ -16,13 +16,23 @@ namespace aurum{
                     std::string type;
                     int is_ptr:1;
                     int auto_ptr:1;
-                    int unused:6;
+                    int is_lit:1;
+                    int unused:5;
                     int ptr_level;
                     bool operator ==(value&);
                 };
                 struct variable: public value{
                     std::string name;
                     bool of_type(value&);
+                };
+                struct basic_function{
+                    std::string name;
+                    value return_value;
+                    int no_discard:1;
+                    int mangling:1;
+                    int imported:1;
+                    int use_varargs:1;
+                    int unused:4;
                 };
                 struct function{
                     std::string name;
@@ -32,7 +42,10 @@ namespace aurum{
                     int mangling:1;
                     int imported:1;
                     int use_varargs:1;
-                    int unused:4;
+                    int is_free:1;
+                    int is_alloc:1;
+                    int is_realloc:1;
+                    int unused:1;
                     function(std::string);
                     // Used to get the actual name of the function
                     // Ex:
@@ -44,14 +57,27 @@ namespace aurum{
                     //      Sans Mangling:
                     //          uint64_t test(uint64_t,uint8_t**,...);
                     std::string get_internal_name();
-                    bool is_same_func(std::string,std::vector<value>);
+                    bool are_same_args(std::vector<value>&);
+                    bool is_same_func(std::string,std::vector<value>&);
                 };
                 struct struct_{
                     std::string name;
                     std::vector<variable> fields;
                 };
+                struct enum_{
+                    std::string name;
+                    std::vector<std::string> values;
+                };
+                struct tagged_union{
+                    std::string name;
+                    std::vector<struct_> struct_fields;
+                };
                 struct class_: public struct_{
                     std::vector<function> methods;
+                    function constructor;
+                    function destructor;
+                    std::vector<function> unary;
+                    std::vector<function> binary;
                 };
                 struct builtin_type{
                     std::string name;
@@ -100,6 +126,9 @@ namespace aurum{
                     std::vector<variable> type_defs;
                     std::vector<std::string> imports;
                     std::vector<macro> macros;
+                    std::vector<struct_> unions;
+                    std::vector<enum_> enums;
+                    std::vector<tagged_union> tagged_unions;
                     shared::integers::nat error_count;
                     shared::integers::byte use_varargs;
                     void report_error(std::string);
@@ -108,7 +137,8 @@ namespace aurum{
                     std::string get_compiled_arguments(const std::vector<variable>&, bool);
                     bool is_type(std::string&);
                     bool is_global_var(std::string&);
-                    std::vector<variable> compile_used_arguments(token_eater&,std::vector<scope>*);
+                    value get_value(token_eater&,std::vector<scope>*,std::string_stream&,bool*);
+                    std::vector<value> compile_used_arguments(token_eater&,std::vector<scope>*,std::string_stream&,bool*);
                     //Takes ptrs to environment variables
                     void compile_tkn_stream(token_eater,shared::integers::nat,...);
                 public:

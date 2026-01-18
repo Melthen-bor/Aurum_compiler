@@ -1,5 +1,6 @@
 #include "compiler.h"
-#include <stdargs.h>
+#include <cstdarg>
+#include <cstdint>
 /*
     READ THIS BEFORE MODIFYING THIS CODE
     There are Functions in this code that can throw std::string
@@ -9,6 +10,12 @@ std::string aurum::compiler::internals::global_path;
 std::string aurum::compiler::internals::code_path;
 std::string aurum::compiler::internals::generated_code_path;
 std::string aurum::compiler::internals::generated_header_path;
+bool is_pow_two(int num){
+    return (num%2)?false:((num==2)?true:is_pow_two(num/2));
+}
+bool is_name_integral(std::string& name){
+    return ((name[1]=='1')||(name[1]=='3')||(name[1]=='6')||(name[1]=='8'))?((((name[0]=='i')||(name[0]=='u')))?is_pow_two(atoi(name.c_str()+1)):false):false;
+}
 aurum::shared::integers::nat aurum::compiler::internals::max_errors;
 bool aurum::compiler::internals::old::value::operator==(value& other){
     if(!(other.type==this->type)) return false;
@@ -36,13 +43,35 @@ std::string aurum::compiler::internals::old::function::get_internal_name(){
     if(this->use_varargs) out.append("ævarargs");
     return out;
 }
+bool are_same_type(value& one,value& two){
+    if(one==two) return true;
+    if(one.is_ptr) return ((two.name=="u64")||(two.name=="i64"))&&(!two.is_ptr);
+    else if(two.is_lit){
+        if(two.name=="int"){
+            if(one.is_ptr) return false;
+            return is_name_integral(this->args.at(i).type);
+        } else if(two.name=="char"){
+            if(one.is_ptr) return false;
+            return (two.name=="u8")||(two.name=="i8");
+        } else if(two.name=="str") if(!one.is_ptr) return false;
+    }
+    return false;
+}
+bool are_same_type(value& one,value& two,std::vector<variable>& types_defs){
+    if(are_same_type(one,two)) return false;
+    for(int i=0;i<type_defs.size();i++) if(are_same_type(one,types_defs)&&are_same_type(two,types_defs)) return true;
+    return false;
+}
+bool aurum::compiler::internals::old::function::are_same_args(std::vector<value>& arg_types,std::vector<variable>& type_defs){
+    if(arg_types.size()<this->args.size()) return false;
+    for(int i=0;i<this->args.size();i++) if(!are_same_type(this->args.at(i),arg_types.at(i),type_defs)) return false;
+    if(!((arg_types.size()>this->args.size())&&this->use_varargs)) return false;
+    return true;
+}
 bool aurum::compiler::internals::old::function::is_same_func(std::string name,std::vector<value>& arg_types){
     if(!this->mangling) return this->name==name;
     if(!(this->name==name)) return false;
-    if(arg_types.size()<this->args.size()) return false;
-    for(int i=0;i<this->args.size();i++) if(!(arg_types.at(i)==this->args.at(i))) return false;
-    if(!((arg_types.size()>this->args.size())&&this->use_varargs)) return false;
-    return true;
+    return this->are_same_args(arg_types);
 }
 aurum::compiler::internals::old::token_eater::token_eater(){
     this->tkns=std::vector<lexer::token>();
@@ -143,16 +172,243 @@ std::vector<aurum::compiler::internals::old::variable> aurum::compiler::internal
         }
     }
 }
-std::vector<aurum::compiler::internals::old::variable> aurum::compiler::internals::old::compiler::compile_used_arguments(token_eater& tkns,std::vector<scope>* scopes){
-    std::vector<variable> out;
+aurum::compiler::internals::old::value aurum::compiler::internals::old::compiler::get_value(token_eater& tkns,std::vector<scope>* scopes,std::string_stream& str,bool* in_class,bool arg_sep){
+    value out;
+    std::vector<value> temp_vals;
+    lexer::token temp;
+    std::string_stream temp_str;
+    std::string_stream temp_str_other;
+    bool can_have_lit=true;
+    bool expects_id=true;
+loop:
+    while(!tkns.peek()){
+        if(arg_sep&&tkns.peek().type==END_ARGS) return out;
+        temp=tkns.consume();
+        switch(temp.type){
+        case lexer::token_type::END_ARGS:
+            temp_str<<')';
+            str<<temp_str;
+            return out;
+        case lexer::token_type::ARG_SEPERATOR:
+            if(arg_sep) return (str<<temp_str,out);
+            else{
+                temp_str<<',';
+                can_have_lit=true;
+                expects_id=true;
+            }
+            break;
+        case lexer::token_type::START_ARGS:
+            temp_str<<'(';
+            this->get_value(tkns,scopes,str,in_class,false);
+            break;
+        case lexer::token_type::GET_ATTRIB:
+            if(in_class==nullptr) this->report_error("Classes no supported");
+            if(!can_have_lit) this->report_error("&> must be the beginning of a value");
+            if(!(*in_class)) this->report_error("You must be in a class to use &>");
+            can_have_lit=false;
+            expects_id=false;
+            if(!(!tkns.peek())) this->report_error("Expected Token");
+            if(!(tkns.peek().type==lexer::token_type::ID)) this->report_error("Expected Token of Type:ID");
+            temp=tkns.consume();
+            for(int i=0;i<this->classes.back().fields.size();i++){
+                if(this->classes.back().fields.at(i).name==temp.val){
+                    out=this->classes.back().fields.at(i);
+                    goto loop;
+                }
+            }
+            for(int i=0;i<this->classes.back().methods.size();i++) if(this->classes.back().methods.at(i).name==temp.val) break;
+            if(!(!tkns.peek())) this->report_error("Expected Token");
+            if(!(tkns.peek().type==lexer::token_type::START_ARGS)) this->report_error("Expected Token of Type:START_ARGS");
+            tkns.consume();
+            temp_str_other.clear();
+            temp_vals=this->compile_used_arguments(tkns,scopes,temp_str_other,in_class);
+            for(int i=0;i<this->classes.back().methods.size();i++){
+                if(this->classes.back().methods.at(i).is_same_func(temp.val,temp_vals)){
+                    if(!this->classes.back().methods.at(i).are_same_args(temp_vals)) this->report_error("Argument values must be the same for non mangled");
+                    temp_str<<this->classes.back().methods.at(i).get_internal_name()<<'('<<"œp,"<<temp_str_other<<')';
+                    out=this->classes.back().methods.at(i).return_value;
+                }
+            }
+            break;
+        case lexer::token_type::POINT_OP:
+            if(!out.is_ptr) this->report_error("Cannot Dereference Non-Pointers");
+            out.ptr_level--;
+            if(out.ptr_level==0) out.is_ptr=false;
+            break;
+        case lexer::token_type::POINT_ATTRIB:
+            if(!(!tkns.peek())) this->report_error("Expected Token");
+            if(!(tkns.peek().type==lexer::token_type::ID)) this->report_error("Expected Token of Type:ID");
+            for(int i=0;i<this->structs.size();i++){
+                if(this->structs.at(i).name==out.name){
+                    if(out.is_ptr){
+                        if(out.ptr_level==1){
+                            for(int j=0;j<this->structs.at(i).fields.size();j++){
+                                if(this->structs.at(i).fields.at(j).name==tkns.peek().val){
+                                    temp_str<<"->"<<tkns.peek().val;
+                                    tkns.consume();
+                                    goto loop;
+                                }
+                            }
+                            tkns.consume();
+                            this->report_error("Cannot find field");
+                            goto loop;
+                        } else this->report_error("Cannot find attribute of a pointer higher than one level");
+                    } else{
+                        for(int j=0;j<this->structs.at(i).fields.size();j++){
+                            if(this->structs.at(i).fields.at(j).name==tkns.peek().val){
+                                temp_str<<'.'<<tkns.peek().val;
+                                tkns.consume();
+                                goto loop;
+                            }
+                        }
+                        tkns.consume();
+                        this->report_error("Cannot find field");
+                        goto loop;
+                    }
+                }
+            }
+            for(int i=0;i<this->classes.size();i++){
+                if(this->classes.at(i).name==out.name){
+                    if(out.is_ptr){
+                        if(out.ptr_level==1){
+                            for(int j=0;j<this->classes.at(i).fields.size();j++){
+                                if(this->classes.at(i).fields.at(j).name==tkns.peek().val){
+                                    temp_str<<"->"<<tkns.peek().val;
+                                    tkns.consume();
+                                    goto loop;
+                                }
+                            }
+                            temp_str_other.clear();
+                            temp_vals=this->compile_used_arguments(tkns,scopes,temp_str_other,in_class);
+                            for(int j=0;j<this->classes.at(i).methods.size();j++){
+                                if(this->classes.at(i).methods.at(j).name==tkns.peek()){
+                                    if(this->classes.at(i).methods.at(j).is_same_func(temp_vals)){
+                                        if(!this->classes.at(i).methods.at(j).are_same_args(temp_vals)) this->report_error("Must be the same function");
+                                        {
+                                            std::string_stream temp_temp_str=std::string_stream();
+                                            temp_temp_str<<tkns.consume().val<<'('<<temp_str<<','<<temp_str_other<<')';
+                                            temp_str<<temp_temp_str;
+                                        }
+                                        goto loop;
+                                    }
+                                }
+                            }
+                            tkns.consume();
+                            this->report_error("Cannot find fuunction or field");
+                            goto loop;
+                        } else this->report_error("Cannot find attribute of a pointer higher than one level");
+                    }
+                }
+            }
+            break;
+        case lexer::token_type::ID:
+            if(!expects_id) this->report_error("Expected Token Not Of Type:ID");
+            for(int i=0;i<this->global_vars.size();i++){
+                if(this->global_vars.at(i).name==temp.val){
+                    out=this->global_vars.at(i);
+                    temp_str<<this->global_vars.at(i).name;
+                    can_have_lit=false;
+                    expects_id=false;
+                    goto loop;
+                }
+            }
+            for(int i=0;i<scopes->size();i++){
+                for(int j=0;j<scopes->at(i).vars.size();j++){
+                    if(scopes->at(i).vars.at(j).name==temp.val){
+                        out=scopes->at(i).vars.at(j);
+                        temp_str<<scopes->at(i).vars.at(j).name;
+                        can_have_lit=false;
+                        expects_id=false;
+                        goto loop;
+                    }
+                }
+            }
+            break;
+        case lexer::token_type::INT_LIT:
+            if(!can_have_lit) this->report_error("Expected Token Not Of Type::INT_LIT");
+            out.is_lit=true;
+            out.type="int";
+            temp_str<<temp.val;
+            can_have_lit=false;
+            expects_id=false;
+            break;
+        case lexer::token_type::STR_LIT:
+            if(!can_have_lit) this->report_error("Expected Token Not Of Type::STR_LIT");
+            out.is_lit=true;
+            out.type="str";
+            temp_str<<'"'<<temp.val<<'"';
+            can_have_lit=false;
+            expects_id=false;
+            break;
+        case lexer::token_type::CHAR_LIT:
+            if(!can_have_lit) this->report_error("Expected Token Not Of Type::INT_LIT");
+            out.is_lit=true;
+            out.type="char";
+            temp_str<<'\''<<temp.val<<'\'';
+            can_have_lit=false;
+            expects_id=false;
+            break;
+        case lexer::token_type::ADD_OP:
+            if(out.is_lit){
+                temp_str<<'+';
+                can_have_lit=true;
+                expects_id=true;
+            } else if(out.is_ptr){
+                temp_str<<'+';
+                can_have_lit=true;
+                expects_id=true;
+            }else{
+                for(int i=0;i<this->builtins.size();i++){
+                    if(out.type==this->builtins.at(i).name){
+                        temp_str<<'+';
+                        can_have_lit=true;
+                        expects_id=true;
+                        goto loop;
+                    }
+                }
+                for(int i=0;i<this->enums.size();i++){
+                    if(out.type==this->enums.at(i).name){
+                        temp_str<<'+';
+                        can_have_lit=true;
+                        expects_id=true;
+                        goto loop;
+                    }
+                }
+                for(int i=0;i<this->typedefs.size();i++){
+                    if(out.type==this->typedefs.at(i).name){
+                        if(this->typedefs.at(i).is_ptr){
+                            temp_str<<'+';
+                            can_have_lit=true;
+                            expects_id=true;
+                            goto loop;
+                        }
+                        for(int j=0;j<this->builtins.size();j++){
+                        }
+                    }
+                }
+                for(int i=0;i<this->classes.size();i++){
+                    if(out.type==this->classes.at(i).name){
+                        //
+                    }
+                }
+            }
+            break;
+        default:
+            this->report_error("Unexpected Token");
+        }
+    }
+    this->report_error("Expected Token");
+}
+std::vector<aurum::compiler::internals::old::value> aurum::compiler::internals::old::compiler::compile_used_arguments(token_eater& tkns,std::vector<scope>* scopes,std::string_stream& str,bool* in_class){
+    std::vector<value> out;
     lexer::token temp;
     while(tkns.peek()){
         temp=tkns.consume();
         switch(temp.type){
         case lexer::token_type::END_ARGS:
             return out;
-        case lexer::token_type::ID:
-            if(!(this->))
+        default:
+            out.push_back(this->get_value(tkns,scopes,str,in_class,true));
         }
     }
 }
@@ -160,7 +416,9 @@ std::vector<aurum::compiler::internals::old::variable> aurum::compiler::internal
 #define MINIMUM_FOR_FUNCTIONS 1
 #define MINIMUM_FOR_STRUCTS 2
 #define MINIMUM_FOR_NO_DISCARD 3
-#define LATEST_COMPILE_TKN_STREAM_VERSION 3
+#define MINIMUM_FOR_AUTO_PTRS 4
+#define MINIMUM_FOR_CUSTOM_ENTRY_POINT 5
+#define LATEST_COMPILE_TKN_STREAM_VERSION 4
 void aurum::compiler::internals::old::compiler::compile_tkn_stream(token_eater tkns,shared::integers::nat version,...){
     if(this->use_varargs) this->report_error("Unexpected Internal Value");
     va_list var_args;
@@ -179,6 +437,10 @@ void aurum::compiler::internals::old::compiler::compile_tkn_stream(token_eater t
     bool imported=false;
     bool* in_struct=nullptr;
     bool* no_discard_mode=nullptr;
+    bool* is_free=nullptr;
+    bool* is_alloc=nullptr;
+    bool* is_realloc=nullptr;
+    std::string* entry_point=nullptr;
     if(version>LATEST_COMPILE_TKN_STREAM_VERSION) throw std::string("Internal Compiler Function[aurum::compiler::internals::old::compiler::compile_tkn_stream] is misused");
     // Version 0
     file=va_arg(var_args,std::string_stream*);
@@ -195,13 +457,21 @@ void aurum::compiler::internals::old::compiler::compile_tkn_stream(token_eater t
     if(!version) goto end;
     // Version 1
     imported=va_arg(var_args,bool);
-    if(version==1) goto end;
+    if(version==MINIMUM_FOR_FUNCTIONS) goto end;
     // Version 2
     in_struct=va_arg(var_args,bool*);
-    if(version==2) goto end;
+    if(version==MINIMUM_FOR_STRUCTS) goto end;
     // Version 3
     no_discard_mode=va_arg(var_args,bool*);
-    //if(version==3) goto end;
+    if(version==MINIMUM_FOR_NO_DISCARD) goto end;
+    // Version 4
+    is_free=va_arg(var_args,bool*);
+    is_alloc=va_arg(var_args,bool*);
+    is_realloc=va_arg(var_args,bool*);
+    if(version==MINIMUM_FOR_AUTO_PTRS) goto end;
+    // Version 5
+    entry_point=va_arg(var_args,std::string*);
+    //if(version==MINIMUM_FOR_CUSTOM_ENTRY_POINT) goto end;
     end:
     va_end(var_args);
     lexer::token temp;
@@ -244,7 +514,8 @@ void aurum::compiler::internals::old::compiler::compile_tkn_stream(token_eater t
                     create_bin,auto_mode,global_library,
                     mangle,in_class,account_for_function,
                     in_function,scope,imported,in_struct,
-                    no_discard_mode
+                    no_discard_mode,is_free,is_alloc,
+                    is_realloc,entry_point
                 ),this->macros.size());
                 if(!macro_found) this->report_error("Macro["+temp.val+"] does not exist");
             } else if(temp.val=="DEFINE"){
@@ -290,7 +561,8 @@ void aurum::compiler::internals::old::compiler::compile_tkn_stream(token_eater t
                         create_bin,auto_mode,global_library,
                         mangle,in_class,account_for_function,
                         in_function,scope,imported,in_struct,
-                        no_discard_mode
+                        no_discard_mode,is_free,is_alloc,
+                        is_realloc,entry_point
                     );
                 }
             } else if(temp.val=="IFDEF"){
@@ -317,11 +589,16 @@ void aurum::compiler::internals::old::compiler::compile_tkn_stream(token_eater t
                         create_bin,auto_mode,global_library,
                         mangle,in_class,account_for_function,
                         in_function,scope,imported,in_struct,
-                        no_discard_mode
+                        no_discard_mode,is_free,is_alloc,
+                        is_realloc,entry_point
                     );
                 }
             } else if(temp.val=="NO_DISCARD") if(version<MINIMUM_FOR_NO_DISCARD) this->report_error("No Discard may not be used") else (*no_discard_mode)=true;
             else if(temp.val=="MAY_DISCARD") if(version<MINIMUM_FOR_NO_DISCARD) this->report_error("May Discard may not be used") else (*no_discard_mode)=false;
+            else if(temp.val=="FREE_FUNCTION") if(version<MINIMUM_FOR_AUTO_PTRS) this->report_error("Auto Ptrs Not Supported") else (*is_free)=true;
+            else if(temp.val=="NOT_FREE") if(version<MINIMUM_FOR_AUTO_PTRS) this->report_error("Auto Ptrs Not Supported") else (*is_free)=false;
+            else if(temp.val=="ALLOC_FUNCTION") if(version<MINIMUM_FOR_AUTO_PTRS) this->report_error("Auto Ptrs Not Supported") else (*is_alloc)=true;
+            else if(temp.val=="NOT_ALLOC") if(version<MINIMUM_FOR_AUTO_PTRS) this->report_error("Auto Ptrs Not Supported") else (*is_alloc)=false;
             break;
         case lexer::token_type::FUNCTION:
             if(*in_function) this->report_error("Functions can not be defined inside functions");
@@ -472,7 +749,11 @@ void aurum::compiler::internals::old::compiler::compile_tkn_stream(token_eater t
                     this->scopes.back().vars.push_back(variable());
                     this->scopes.back().vars.back().type=temp.val;
                     if(!(!tkns.peek())) this->report_error("Expected Token");
-                    this->scopes.back().vars.back().is_ptr=(tkns.peek().type==lexer::token_type::POINT_OP);
+                    //this->scopes.back().vars.back().is_ptr=(tkns.peek().type==lexer::token_type::POINT_OP);
+                    if(tkns.peek().type==lexer::token_type::POINT_OP){
+                        this->scopes.back().vars.back().is_ptr=true;
+                        this->scopes.back().vars.back().auto_ptr=(*auto_mode);
+                    }
                     while((!tkns.peek())&&(tkns.peek().type==lexer::token_type::POINT_OP)) (tkns.consume(),this->scopes.back().vars.back().ptr_level++);
                     if(!((!tkns.peek()))&&(tkns.peek().type==lexer::token_type::ID)) this->report_error("Expected Token of Type:ID");
                     this->scopes.back().vars.back().name=tkns.consume().val;

@@ -53,7 +53,6 @@ std::vector<aurum::lexer::token> aurum::lexer::lexer::tokenize() {
 			else if(buffer=="member") out.push_back({token_type::MEMBER,std::string()});
 			else if(buffer=="sysout") out.push_back({token_type::SYSOUT,std::string()});
 			else if(buffer=="procedure") out.push_back({token_type::PROCEDURE,std::string()});
-			else if(buffer=="sysin") out.push_back({token_type::SYSIN,std::string()});
 			else if(buffer=="create") out.push_back({token_type::CREATE,std::string()});
 			else if(buffer=="destroy") out.push_back({token_type::DESTROY,std::string()});
 			else if(buffer=="letter") out.push_back({token_type::LETTER,std::string()});
@@ -62,11 +61,12 @@ std::vector<aurum::lexer::token> aurum::lexer::lexer::tokenize() {
 			else if(buffer=="as") out.push_back({token_type::AS,std::string()});
 			else if(buffer=="open_class") out.push_back({token_type::OPEN_CLASS,std::string()});
 			else if(buffer=="struct") out.push_back({token_type::STRUCT,std::string()});
-			else if(buffer=="null") out.push_back({token_type::_NULL,std::string()}};
+			else if(buffer=="null") out.push_back({token_type::_NULL,std::string()});
 			else if(buffer=="forever") out.push_back({token_type::FOREVER,std::string()});
 			else if(buffer=="pass") out.push_back({token_type::PASS,std::string()});
 			else if(buffer=="typedef") out.push_back({token_type::TYPEDEF,std::string()});
 			else if(buffer=="varargs") out.push_back({token_type::VARARGS,std::string()});
+			else if(buffer=="operator") out.push_back({token_type::OPERATOR,std::string()});
 			else out.push_back({token_type::ID,buffer});
 		} else if(std::isdigit(small_buffer)){
 			buffer.push_back(small_buffer);

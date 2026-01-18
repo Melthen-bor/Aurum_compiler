@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include <fstream>
+#include <array>
 namespace aurum {
 	namespace shared {
 		typedef void* handle;
