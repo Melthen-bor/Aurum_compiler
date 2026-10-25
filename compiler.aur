@@ -1,0 +1,572 @@
+{
+	These Features of Aurum cannot be used in this code due to the Bootstrap Compiler's Simplicity:
+		* User Defined Types
+		* Passing Pointer Variables into Functions
+			Cast to u64 when passing then cast to pointer on use
+		* Returning Pointers from Functions
+			See Work around on previous
+		* Control-Flow aside from Labels,Goto, & If
+			Use a Combination of these to implement other control flow constructs
+		* Procedure
+			Use Functions that return u0 or i0
+		* Metaprogramming
+		* Assignment Operations aside from =
+		* Increment & Decrement Operators
+		* Shift Operators
+		* Function Pointers
+}
+{
+	Declare Basic C IO Interface
+	typedef u64 as cFile;
+	typedef u32 as cIOChr;
+	typedef u32 as cBool;
+	function fopen(u8 &*,u8 &*) cFile;
+	function fputc(cIOChr,cFile) cIOChr;
+	function fgetc(cFile) cIOChr;
+	function fclose(cFile) cBool;
+}
+function fopen(u64 name,u64 mode) u64;
+function fputc(u32 chr,u64 fp) u32;
+function fgetc(u64 fp) u32;
+function fclose(u64 fp) u32;
+{
+	Declare Basic C Memory Interface
+	typedef u64 as cHandle;
+	typedef u64 as cSize;
+	function malloc(cSize) cHandle;
+	function realloc(cHandle,cSize) cHandle;
+	procedure free(cHandle);
+}
+function malloc(u64 size) u64;
+function realloc(u64 ptr,u64 size) u64;
+function free(u64 ptr) u0;
+{
+	Declare Basic C String Interface
+}
+function strcmp(u64 str0,u64 str1) i32;
+function strcat(u64 str0,u64 str1) u64;
+{
+	Define Basic IO Helper Functions
+	procedure print(u8 &*,u64);
+	procedure println(u8 &*,u64);
+}
+function print(u64 str,u64 fp) u0 start
+	u64 handle=0;
+	label loop_header;
+	if((&*((str) as u8 &* + handle))==0) goto loop_end;
+	fputc(&*((str) as u8 &* + handle),fp);
+	handle=handle+1;
+	goto loop_header;
+	label loop_end;
+end
+function println(u64 str,u64 fp) u0 start
+	print(str,fp);
+	fputc('\n',fp);
+end
+{
+	Basic u64 tuple
+	struct tuple start
+		u64 size;
+		u64 &* ptr;
+	end
+	function create_tuple(u64) tuple &*;
+	function access_tuple_member(tuple &*,u64) u64;
+	procedure destroy_tuple(tuple &*);
+}
+function create_tuple(u64 size) u64 start
+	u64 out=malloc(sizeof(u64)*2);
+	&*((out) as u64 &*)=size;
+	&*((out) as u64 &* +1)=malloc(sizeof(u64)*size);
+	return out;
+end
+function access_tuple_member(u64 tuple,u64 index) u64 start
+	if(&!(index<(&*((tuple) as u64 &*)))) return 0;
+	return &*((&*((tuple) as u64 &* +1)) as u64 &* + index);
+end
+function destroy_tuple(u64 tuple) u0 start
+	free(&*((tuple) as u64 &* +1));
+	free(tuple);
+end
+{
+	Custom Array Interface
+	struct array start
+		u64 data;
+		u64 size;
+		u64 capacity;
+	end
+	function empty_array() array &*;
+	procedure clr_array(array &*);
+	function array_size(array &*) u64;
+	function array_capacity(array &*) u64;
+	function array_data(array &*) u64;
+}
+function empty_array() u64 start
+	u64 out=malloc(sizeof(u64)*3);
+	&*((out) as u64 &*)=0;
+	&*((out) as u64 &* +1)=0;
+	&*((out) as u64 &* +2)=0;
+	return out;
+end
+function clr_array(u64 array) u0 start
+	&*((&*((array) as u64 &* +1)) as u8 &*)=0;
+end
+function array_size(u64 array) u64 start
+	return &*((array) as u64 &* +1);
+end
+function array_capacity(u64 array) u64 start
+	return &*((array) as u64 &* +2);
+end
+function array_data(u64 array) u64 start
+	return &*((array) as u64 &*);
+end
+function destroy_array(u64 array) u0 start
+	free(array_data(array));
+	&*((array) as u64 &*)=0;
+	&*((array) as u64 &* +1)=0;
+	&*((array) as u64 &* +2)=0;
+end
+function del_array(u64 array) u0 start
+	destroy_array(array);
+	free(array);
+end
+{
+	Custom String Interface
+	struct string start
+		u8 &* ptr;
+		u64 size;
+		u64 capacity;
+	end
+	function construct_str(u8 &*) string &*;
+	procedure append_chr(string &*,u8);
+	function chr_at(string &*,u64) u8;
+	function find_chr(string &*,u8) u64;
+	function back_chr(string &*) u8;
+	procedure drop_excess(string &*);
+	procedure cat_str(string &*,string &*);
+	function cmp_str(string &*,string &*) i32;
+	procedure destroy_str(string &*);
+		* deallocates the character array associated with the string but not the stribng itself
+	procedure del_str(string &*);
+		* calls destroy_str then deallocs the string
+	
+}
+function append_chr(u64 str,u8 chr) u0 start
+	if(array_capacity(str)==0) start
+		(&*((str) as u64 &*))=malloc(1);
+		&*((str) as u64 &* +2)=1;
+		goto after_if;
+	end
+	if(array_size(str)==array_capacity(str)) start
+		&*((str) as u64 &* +2)=array_capacity(str)+1;
+		(&*((str) as u64 &*))=realloc(array_data(str),array_capacity(str));
+	end
+	label after_if;
+	&*((array_data(str)+array_size(str)) as u8 &*)=chr;
+	&*((str) as u64 &* +1)=array_size(str)+1;
+end
+function chr_at(u64 str,u64 index) u8 start
+	if(&!(index<array_size(str))) return 0;
+	return &*((array_data(str)) as u8 &* +index);
+end
+function find_chr(u64 str,u8 chr) u64 start
+	u64 handle=0;
+	label loop_header;
+	if(handle==array_size(str)) return handle;
+	if(chr_at(str,handle)==chr) return handle;
+	handle=handle+1;
+	goto loop_header;
+end
+function back_chr(u64 str) u8 start
+	return chr_at(str,array_size(str)-1);
+end
+function drop_excess(u64 str) u0 start
+	label loop_header;
+	if(&!(back_chr(str)==0)) goto loop_end;
+	&*((str) as u64 &* +1)=array_size(str)-1;
+	goto loop_header;
+	label loop_end;
+end
+function cat_str(u64 str0,u64 str1) u0 start
+	append_chr(str0,0);
+	append_chr(str1,0);
+	if((array_size(str0)+array_size(str1))>(array_capacity(str0))) start
+		&*((str0) as u64 &*)=realloc(array_data(str0),(array_size(str0)+array_size(str1))+1);
+		&*((str0) as u64 &* +2)=(array_size(str0)+array_size(str1))+1;
+	end
+	strcat(array_data(str0),array_data(str1));
+	&*((str0) as u64 &* +1)= array_size(str0)+array_size(str1);
+	drop_excess(str0);
+	drop_excess(str1);
+end
+function cmp_str(u64 str0,u64 str1) i32 start
+	append_chr(str0,0);
+	append_chr(str1,0);
+	i32 difference=strcmp((array_data(str0)) as u8 &*,(array_data(str1)) as u8 &*);
+	drop_excess(str0);
+	drop_excess(str1);
+	return difference;
+end
+function construct_str(u64 c_str) u64 start
+	u64 out=empty_array();
+	u64 index=0;
+	label c_str_conversion_header;
+	if(&*((c_str) as u8 &* +index)==0) goto after_c_str_conversion;
+	append_chr(out,&*((c_str) as u8 &* +index));
+	index=index+1;
+	goto c_str_conversion_header;
+	label after_c_str_conversion;
+	return out;
+end
+{
+	String Array Interface
+	struct strings start
+		string &* strs;
+		u64 size;
+		u64 capcity;
+	end
+	procedure append_string(strings &*,string &*);
+	function str_at(strings &*,u64)
+	function find_string(strings &*,string &*) u64;
+	procedure clr_strs(strings &*);
+	procedure destroy_strs(strings &*);
+	procedure del_strs(strings &*);
+}
+function append_string(u64 strs,u64 str) u0 start
+	 if(array_capacity(strs)) start
+		&*((strs) as u64 &*)=malloc(sizeof(u64));
+		&*((strs) as u64 &* +2)=1;
+		goto after_if;
+	 end
+	 if(array_size(strs)==array_capacity(strs)) start
+		&*((strs) as u64 &* +2)=array_capacity(strs)+1;
+		&*((strs) as u64 &*)=realloc(array_data(strs),sizeof(u64)*array_capacity(strs));
+	 end
+	 label after_if;
+	 &*((array_data(strs)+array_size(strs)) as u64 &*)=str;
+	 &*((strs) as u64 &* +1)=array_size(strs)+1;
+end
+function str_at(u64 strs,u64 index) u64 start
+	if(&!(index<array_size(strs))) return 0;
+	return &*((array_data(strs)) as u64 &* +index);
+end
+function find_string(u64 strs,u64 str) u64 start
+	u64 handle=0;
+	label loop_header;
+	if(handle==array_size(strs)) return handle;
+	if(cmp_str(str_at(strs,handle),str)==0) return handle;
+	goto loop_header;
+end
+function clr_strs(u64 strs) u0 start
+	 u64 handle=0;
+	 label loop_header;
+	 if(handle==array_size(strs)) goto after_loop;
+	 del_array(str_at(strs,handle));
+	 handle=handle+1;
+	 goto loop_header;
+	 label after_loop;
+	 clr_array(strs);
+end
+function destroy_strs(u64 strs) u0 start
+	clr_strs(strs);
+	destroy_array(strs);
+end
+function del_strs(u64 strs) u0 start
+	clr_strs(strs);
+	del_array(strs);
+end
+{
+	Global Symbol Table Interface
+	function g_find_symbol(string &*) u64;
+	function g_symbol_count() u64;
+	procedure g_append_symbol(string &*);
+	function g_symbol_at(u64) u64;
+}
+u64 global_symbol_table;
+function g_find_symbol(u64 str) u64 start
+	return find_string(global_symbol_table,str);
+end
+function g_symbol_count() u64 start
+	return array_size(global_symbol_table);
+end
+function g_append_symbol(u64 str) u0 start
+	if(g_symbol_count()==find_symbol(str)) append_str(global_symbol_table,str);
+end
+function g_symbol_at(u64 index) u64 start
+	return str_at(global_symbol_table,index);
+end
+{
+	u64 array interface implements array
+	struct u64_array start
+		u64 &* data;
+		u64 size;
+		u64 capacity;
+	end
+	function u64_at(u64_array &*,u64) u64;
+}
+function u64_at(u64 arrays,u64 index) u64 start
+	return &*((array_data(arrays)) as u64 &* +index);
+end
+{
+	u64 array array interface implements array
+	struct u64_arrays start
+		u64_array &* data;
+		u64 size;
+		u64 capacity;
+	end
+	procedure clr_u64_arrays(u64_arrays &*);
+	function u64_array_at(u64_arrays &*,u64) u64_array &*;
+	procedure destroy_u64_arrays(u64_arrays &*);
+	procedure del_u64_arrays(u64_arrays &*);
+}
+function u64_array_at(u64 u64_arrays,u64 index) u64 start
+	if(index<array_size(u64_arrays)) return &*((array_data(u64_arrays)) as u64 &* +handle);
+	return 0;
+end
+function clr_u64_arrays(u64 u64_arrays) u0 start
+	u64 handle=0;
+	label loop_header;
+	if(handle==array_size(u64_arrays)) goto after_loop;
+	del_array(u64_array_at(u6_arrays,handle));
+	goto loop_header;
+	label after_loop;
+	clr_array(u64_arrays);
+end
+{
+	Local Symbol Table Interface
+	function l_find_symbol(u64_array &*,string &*) u64;
+	procedure l_append_symbol(u64_array &*,string &*);
+	
+}
+function l_find_symbol(u64 table,u64 str) u64 start
+	u64 handle=0;
+	label loop_header;
+	if(array_size(table)==handle) return handle;
+	if(cmp_str(g_symbol_at(u64_at(table,handle)),str)==0) return handle;
+	handle=handle+1;
+	goto loop_header;
+end
+function l_append_symbol(u64 table,u64 str) u0 start
+	g_append_symbol(str);
+	if(l_find_symbol(table,str)<array_size(table)) return;
+	if(array_capacity(table)==0) start
+		&*((table) as u64 &* +2)=1;
+		&*((table) as u64 &*)=malloc(sizeof(u64));
+		goto after_if;
+	end
+	if(array_capacity(table)==array_size(table)) start
+		&*((table) as u64 &* +2)=array_capacity(table)+1;
+		&*((table) as u64 &*)=realloc(array_data(table),array_capacity(table)*sizeof(u64));
+	end
+	label after_if;
+	&*((array_data(table)) as u64 &* + index)=g_find_symbol(str);
+	&*((table) as u64 &* +1)=array_size(table)+1;
+end
+{
+	Symbol Table Stack Interface
+	procedure push_symbol_table();
+	procedure pop_symbol_table();
+	function find_symbol(string &*) tuple(2);
+}
+u64 symbol_stack;
+function push_symbol_table() u0 start
+	if(array_capacity(symbol_stack)==0) start
+		&*((symbol_stack) as u64 &* +2)=1;
+		&*((symbol_stack) as u64 &*)=malloc(sizeof(u64));
+		goto after_if;
+	end
+	if(array_capacity(symbol_stack)==array_size(symbol_stack)) start
+		&*((symbol_stack) as u64 &* +2)=array_capacity(symbol_stack)+1;
+		&*((symbol_stack) as u64 &*)=realloc(array_data(symbol_stack),array_capacity(symbol_stack)*sizeof(u64));
+	end
+	label after_if;
+	&*((array_data(symbol_stack)) as u64 &* + index)=empty_array();
+	&*((symbol_stack) as u64 &* +1)=array_size(symbol_stack)+1;
+end
+function pop_symbol_table() u0 start
+	if(array_size(symbol_stack)==0) return;
+	free(u64_array_at(symbol_stack,array_size(symbol_stack)-1));
+	&*((symbol_stack) as u64 &* +1)=array_size(symbol_stack)-1;
+end
+function find_symbol(u64 str) u64 start
+	u64 handle=array_size(symbol_stack);
+	u64 temp_h;
+	label loop_header;
+	if(handle==0) goto after_loop;
+	temp_h=l_find_symbol(&*((array_data(symbol_stack)) as u64 &* + handle),str);
+	if(temp_h<array_size(&*((array_data(symbol_stack)) as u64 &* + handle))) start
+		{create tuple to return (index_to_table,index_in_table)}
+		u64 out=create_tuple(2);
+	end
+	goto loop_header;
+	label after_loop;
+	return array_size(symbol_stack);
+end
+{
+	Lexer Interface
+	struct token start
+		enum token_type start
+			NOP,
+			ID,
+			IF,
+			ELSE,
+			RETURN,
+			START,
+			END,
+			CLASS,
+			OPEN_CLASS,
+			STRUCT,
+			FUNCTION,
+			PROCEDURE,
+			AS,
+			PROGRAM,
+			OPERATOR,
+			EMBED,
+			CONSTRUCT,
+			DESTRUCT,
+			TYPEDEF,
+			LET,
+			ENUM,
+			UNION,
+			TAGGED_UNION
+		end
+		token_type type;
+		string &* value;
+	end
+	function create_tkn(token::token_type,string &*) token &*;
+	function tokenize(u64 &* str) array(token);
+}
+u64 tkn_type_nop=0;
+u64 tkn_type_id=1;
+u64 tkn_type_if=2;
+u64 tkn_type_else=3;
+u64 tkn_type_return=4;
+u64 tkn_type_start=5;
+u64 tkn_type_end=6;
+u64 tkn_type_class=7;
+u64 tkn_type_open_class=8;
+u64 tkn_type_struct=9;
+u64 tkn_type_function=10;
+u64 tkn_type_procedure=11;
+u64 tkn_type_as=12;
+u64 tkn_type_program=13;
+u64 tkn_type_operator=14;
+u64 tkn_type_embed=15;
+u64 tkn_type_construct=16;
+u64 tkn_type_destruct=17;
+u64 tkn_type_typedef=18;
+u64 tkn_type_let=19;
+u64 tkn_type_enum=20;
+u64 tkn_type_union=21;
+u64 tkn_type_tagged_union=22;
+function create_tkn(u64 type,u64 val) u64 start
+	u64 out=malloc(sizeof(u64)*2);
+	&*((out) as u64 &*)=type;
+	&*((out) as u64 &* +1)=val;
+	return out;
+end
+function construct_tkn_in_place(u64 tkns,u64 type,u64 val) u0 start
+	u64 temp_tkn=create_tkn(type,val);
+	append_string(tkns,temp_tkn);
+end
+u64 if_tkn_str;
+u64 else_tkn_str;
+u64 return_tkn_str;
+u64 start_tkn_str;
+u64 end_tkn_str;
+u64 class_tkn_str;
+u64 open_class_tkn_str;
+u64 struct_tkn_str;
+u64 function_tkn_str;
+u64 procedure_tkn_str;
+u64 as_tkn_str;
+u64 program_tkn_str;
+u64 operator_tkn_str;
+u64 embed_tkn_str;
+u64 construct_tkn_str;
+u64 destruct_tkn_str;
+u64 typedef_tkn_str;
+u64 let_tkn_str;
+u64 enum_tkn_str;
+u64 union_tkn_str;
+u64 tagged_union_tkn_str;
+function tokenize(u64 str) u64 start
+	u64 tkns=empty_array();
+	u64 index_into_str=0;
+	u64 string_temp=empty_array();
+	u8 in_id=0;
+	u64 temp_tkn;
+	label iterate_over_string_header;
+	if(index_into_str==array_size(str)) goto after_iterate_over_string;
+		if(in_id) goto handle_id;
+		if((char_at(str,index_into_str)-'A')<26) goto handle_id_header;
+		if((char_at(str,index_into_str)-'a')<26) goto handle_id_header;
+	label iterate_over_string_footer;
+		index_into_str=index_into_str+1;
+		goto iterate_over_string_header;
+	label handle_id_header;
+		in_id=1;
+		label handle_id;
+			if(char_at(str,index_into_str)==' ') goto id_check;
+			if(char_at(str,index_into_str)=='\n') goto id_check;
+			if(char_at(str,index_into_str)=='*') goto id_ended_by_usable_symbol;
+			append_chr(string_temp,char_at(str,index_into_str));
+			goto iterate_over_string_footer;
+		label id_ended_by_usable_symbol;
+			index_into_str=index_into_str-1;
+		label id_check;
+			in_id=0;
+			if(cmp_str(string_temp,if_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_if,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,else_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_else,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,return_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_return,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,start_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_start,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,end_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_end,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			construct_tkn_in_place(tkns,tkn_type_id,string_temp);
+			string_temp=empty_array();
+			goto iterate_over_string_footer;
+	label after_iterate_over_string;
+end
+program start
+	global_symbol_table=empty_array();
+	symbol_stack=empty_array();
+	if_tkn_str=construct_str("if");
+	else_tkn_str=construct_str("else");
+	return_tkn_str=construct_str("return");
+	start_tkn_str=construct_str("start");
+	end_tkn_str=construct_str("end");
+	class_tkn_str=construct_str("class");
+	open_class_tkn_str=construct_str("open_class");
+	struct_tkn_str=construct_str("struct");
+	function_tkn_str=construct_str("function");
+	procedure_tkn_str=construct_str("procedure");
+	as_tkn_str=construct_str("as");
+	program_tkn_str=construct_str("program");
+	operator_tkn_str=construct_str("operator");
+	embed_tkn_str=construct_str("embed");
+	construct_tkn_str=construct_str("construct");
+	destruct_tkn_str=construct_str("destruct");
+	typedef_tkn_str=construct_str("typedef");
+	let_tkn_str=construct_str("let");
+	enum_tkn_str=construct_str("enum");
+	union_tkn_str=construct_tkn("union");
+	tagged_union_tkn_str=construct_tkn_str("tagged_union");
+end
