@@ -126,6 +126,11 @@ std::vector<token> tokenize(std::string& input){
 			tkns.back().value.push_back('\\');
 			tkns.back().value.push_back('n');
 			escape=false;
+		}
+		else if(in_str&&(input.at(handle)=='t')&&escape){
+			tkns.back().value.push_back('\\');
+			tkns.back().value.push_back('t');
+			escape=false;
 		} else if(in_chr&&(!(escape||(input.at(handle)=='\'')||(input.at(handle)=='\\')))) tkns.back().value.push_back(input.at(handle));
 		else if(in_chr&&(input.at(handle)=='\\')&&(!escape)) escape=true;
 		else if(in_chr&&(input.at(handle)=='\\')&&escape){
@@ -139,6 +144,11 @@ std::vector<token> tokenize(std::string& input){
 		else if(in_chr&&(input.at(handle)=='\'')&&escape){
 			tkns.back().value.push_back('\\');
 			tkns.back().value.push_back('\'');
+			escape=false;
+		}
+		else if(in_chr&&(input.at(handle)=='t')&&escape){
+			tkns.back().value.push_back('\\');
+			tkns.back().value.push_back('t');
 			escape=false;
 		}
 		else if(in_id){
@@ -468,11 +478,15 @@ void compile(std::vector<token>& tkns){
 	}
 	out.close();
 	std::system("gcc -o program.out program.c");
+	std::system("rm program.c");
 }
 int main(){
 	std::string name;
 	std::cin>>name;
-	std::string value=read_file(name);
+	std::string temp_name=name+".temp";
+	std::system((std::string("gcc -E -o ")+temp_name+std::string(" ")+name).c_str());
+	std::string value=read_file(temp_name);
 	std::vector<token> tkns=tokenize(value);
 	compile(tkns);
+	std::system((std::string("rm ")+temp_name).c_str());
 }
