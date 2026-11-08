@@ -20,15 +20,19 @@
 	typedef u64 as cFile;
 	typedef u32 as cIOChr;
 	typedef u32 as cBool;
+	Name then Mode
 	function fopen(u8 &*,u8 &*) cFile;
+	Character then File
 	function fputc(cIOChr,cFile) cIOChr;
 	function fgetc(cFile) cIOChr;
+	function feof(cFile) cBool;
 	function fclose(cFile) cBool;
 }
-function fopen(u64 name,u64 mode) u64;
-function fputc(u32 chr,u64 fp) u32;
-function fgetc(u64 fp) u32;
-function fclose(u64 fp) u32;
+function fopen(u64,u64) u64;
+function fputc(u32,u64) u32;
+function fgetc(u64) u32;
+function feof(u64) u32;
+function fclose(u64) u32;
 {
 	Declare Basic C Memory Interface
 	typedef u64 as cHandle;
@@ -42,6 +46,8 @@ function realloc(u64 ptr,u64 size) u64;
 function free(u64 ptr) u0;
 {
 	Declare Basic C String Interface
+	function strcmp(u8 &*,u8 &*) i32;
+	function strcat(u8 &*,u8 &*) u64;
 }
 function strcmp(u64 str0,u64 str1) i32;
 function strcat(u64 str0,u64 str1) u64;
@@ -49,6 +55,8 @@ function strcat(u64 str0,u64 str1) u64;
 	Define Basic IO Helper Functions
 	procedure print(u8 &*,u64);
 	procedure println(u8 &*,u64);
+	procedure printu64(u64,u64);
+	procedure printu64ln(u64,u64);
 }
 function print(u64 str,u64 fp) u0 start
 	u64 handle=0;
@@ -61,6 +69,18 @@ function print(u64 str,u64 fp) u0 start
 end
 function println(u64 str,u64 fp) u0 start
 	print(str,fp);
+	fputc('\n',fp);
+end
+function printu64(u64 number,u64 fp) u0 start
+	if(number<10) start
+		fputc('0'+number,fp);
+		return;
+	end
+	printu64(number/10,fp);
+	fputc('0'+(number%10),fp);
+end
+function printu64ln(u64 number,u64 fp) u0 start
+	printu64(number,fp);
 	fputc('\n',fp);
 end
 {
@@ -142,13 +162,14 @@ end
 	function find_chr(string &*,u8) u64;
 	function back_chr(string &*) u8;
 	procedure drop_excess(string &*);
+	procedure prnt_str(cFile,string &*);
 	procedure cat_str(string &*,string &*);
 	function cmp_str(string &*,string &*) i32;
 	procedure destroy_str(string &*);
 		* deallocates the character array associated with the string but not the stribng itself
 	procedure del_str(string &*);
 		* calls destroy_str then deallocs the string
-	
+	function read_file(cFile) string &*;
 }
 function append_chr(u64 str,u8 chr) u0 start
 	if(array_capacity(str)==0) start
@@ -186,6 +207,14 @@ function drop_excess(u64 str) u0 start
 	goto loop_header;
 	label loop_end;
 end
+function prnt_str(u64 fp,u64 str) u0 start
+	u64 handle=0;
+	label iterate_over_str_header;
+	if(handle==array_size(str)) return;
+	fputc(&*((array_data(str)) as u8 &* + handle),fp);
+	handle=handle+1;
+	goto iterate_over_str_header;
+end
 function cat_str(u64 str0,u64 str1) u0 start
 	append_chr(str0,0);
 	append_chr(str1,0);
@@ -216,6 +245,15 @@ function construct_str(u64 c_str) u64 start
 	goto c_str_conversion_header;
 	label after_c_str_conversion;
 	return out;
+end
+function read_file(u64 fp) u64 start
+	u64 str=empty_array();
+	label read_header;
+	if(feof(fp)==0) start
+		append_chr(str,(fgetc(fp)) as u8);
+		goto read_header;
+	end
+	return str;
 end
 {
 	String Array Interface
@@ -427,12 +465,45 @@ end
 			LET,
 			ENUM,
 			UNION,
-			TAGGED_UNION
+			TAGGED_UNION,
+			GOTO,
+			LABEL,
+			WHILE,
+			FOR,
+			UNTIL,
+			JMP_TABLE,
+			ELF,
+			START_ARGS,
+			END_ARGS,
+			PTR_OP,
+			END_STATEMENT,
+			ADD_OP,
+			MUL_OP,
+			SUB_OP,
+			DIV_OP,
+			AND_BIT,
+			OR_BIT,
+			NOT_BIT,
+			INC_OP,
+			DEC_OP,
+			ASS,
+			ARG_SEP,
+			EQU,
+			LESS,
+			GREAT,
+			INT_LIT,
+			CHAR_LIT,
+			STR_LIT,
+			AND_LOG,
+			OR_LOG,
+			XOR_LOG,
+			NOT_LOG
 		end
 		token_type type;
-		string &* value;
+		u64 value;
 	end
-	function create_tkn(token::token_type,string &*) token &*;
+	function create_tkn(token::token_type,u64) token &*;
+	procedure construct_tkn_in_place(array(token),token::token_type,u64);
 	function tokenize(u64 &* str) array(token);
 }
 u64 tkn_type_nop=0;
@@ -458,6 +529,38 @@ u64 tkn_type_let=19;
 u64 tkn_type_enum=20;
 u64 tkn_type_union=21;
 u64 tkn_type_tagged_union=22;
+u64 tkn_type_goto=23;
+u64 tkn_type_label=24;
+u64 tkn_type_while=25;
+u64 tkn_type_for=26;
+u64 tkn_type_until=27;
+u64 tkn_type_jmp_table=28;
+u64 tkn_type_elf=29;
+u64 tkn_type_start_args=30;
+u64 tkn_type_end_args=31;
+u64 tkn_type_ptr_op=32;
+u64 tkn_type_end_statement=33;
+u64 tkn_type_add_op=34;
+u64 tkn_type_mul_op=35;
+u64 tkn_type_sub_op=36;
+u64 tkn_type_div_op=37;
+u64 tkn_type_and_bit=38;
+u64 tkn_type_or_bit=39;
+u64 tkn_type_not_bit=40;
+u64 tkn_type_inc_op=41;
+u64 tkn_type_dec_op=42;
+u64 tkn_type_ass=43;
+u64 tkn_type_arg_sep=44;
+u64 tkn_type_equ=45;
+u64 tkn_type_less=46;
+u64 tkn_type_great=47;
+u64 tkn_type_int_lit=48;
+u64 tkn_type_char_lit=49;
+u64 tkn_type_str_lit=50;
+u64 tkn_type_and_log=51;
+u64 tkn_type_or_log=52;
+u64 tkn_type_xor_log=53;
+u64 tkn_type_not_log=54;
 function create_tkn(u64 type,u64 val) u64 start
 	u64 out=malloc(sizeof(u64)*2);
 	&*((out) as u64 &*)=type;
@@ -468,6 +571,7 @@ function construct_tkn_in_place(u64 tkns,u64 type,u64 val) u0 start
 	u64 temp_tkn=create_tkn(type,val);
 	append_string(tkns,temp_tkn);
 end
+u64 nop_tkn_str;
 u64 if_tkn_str;
 u64 else_tkn_str;
 u64 return_tkn_str;
@@ -489,17 +593,558 @@ u64 let_tkn_str;
 u64 enum_tkn_str;
 u64 union_tkn_str;
 u64 tagged_union_tkn_str;
+u64 goto_tkn_str;
+u64 label_tkn_str;
+u64 while_tkn_str;
+u64 for_tkn_str;
+u64 until_tkn_str;
+u64 jmp_table_tkn_str;
+u64 elf_tkn_str;
+function prnt_tkn(u64 fp,u64 tkn) u0 start
+	if(&*((tkn) as u64 &*)==tkn_type_nop) start
+		prnt_str(fp,nop_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_id) start
+		print("id:",fp);
+		prnt_str(fp,g_symbol_at(&*((tkn) as u64 &* +1)));
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_if) start
+		prnt_str(fp,if_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_else) start
+		prnt_str(fp,else_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_return) start
+		prnt_str(fp,return_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_start) start
+		prnt_str(fp,start_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_end) start
+		prnt_str(fp,end_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_class) start
+		prnt_str(fp,class_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_open_class) start
+		prnt_str(fp,open_class_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_struct) start
+		prnt_str(fp,struct_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_function) start
+		prnt_str(fp,function_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_procedure) start
+		prnt_str(fp,procedure_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_as) start
+		prnt_str(fp,as_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_program) start
+		prnt_str(fp,program_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_operator) start
+		prnt_str(fp,operator_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_embed) start
+		prnt_str(fp,embed_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_construct) start
+		prnt_str(fp,construct_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_destruct) start
+		prnt_str(fp,destruct_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_typedef) start
+		prnt_str(fp,typedef_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_let) start
+		prnt_str(fp,let_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_enum) start
+		prnt_str(fp,enum_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_union) start
+		prnt_str(fp,union_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_tagged_union) start
+		prnt_str(fp,tagged_union_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_goto) start
+		prnt_str(fp,goto_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_label) start
+		prnt_str(fp,label_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_while) start
+		prnt_str(fp,while_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_for) start
+		prnt_str(fp,for_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_until) start
+		prnt_str(fp,until_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_jmp_table) start
+		prnt_str(fp,jmp_table_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_elf) start
+		prnt_str(fp,elf_tkn_str);
+		fputc('\n',fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_start_args) start
+		print("START_ARGS\n",fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_end_args) start
+		print("END_ARGS\n",fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_ptr_op) start
+		print("PTR_OP\n",fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_end_statement) start
+		print("END_STATEMENT\n",fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_add_op) start
+		print("ADD_OP\n",fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_mul_op) start
+		print("MUL_OP\n",fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_sub_op) start
+		print("SUB_OP\n",fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_div_op) start
+		print("DIV_OP\n",fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_and_bit) start
+		print("AND_BIT\n",fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_or_bit) start
+		print("OR_BIT\n",fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_not_bit) start
+		print("NOT_BIT\n",fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_inc_op) start
+		print("INC_OP\n",fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_dec_op) start
+		print("DEC_OP\n",fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_ass) start
+		print("ASS\n",fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_arg_sep) start
+		print("ARG_SEP\n",fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_equ) start
+		print("EQU\n",fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_less) start
+		print("LESS\n",fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_great) start
+		print("GREAT\n",fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_int_lit) start
+		print("INT_LIT:",fp);
+		printu64ln(&*((tkn) as u64 &* +1),fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_char_lit) start
+		print("CHAR_LIT:'",fp);
+		fputc((&*((tkn) as u64 &* +1))%128,fp);
+		println("'",fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_str_lit) start
+		print("STR_LIT:\"",fp);
+		prnt_str(fp,&*((tkn) as u64 &*));
+		println("\"",fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_and_log) start
+		println("AND_LOG",fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_or_log) start
+		println("OR_LOG",fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_xor_log) start
+		println("XOR_LOG",fp);
+		return;
+	end
+	if(&*((tkn) as u64 &*)==tkn_type_not_log) start
+		println("NOT_LOG",fp);
+		return;
+	end
+end
+function prnt_tkns(u64 fp,u64 tkns) u0 start
+	u64 handle=0;
+	label header;
+	if(handle==array_size(tkns)) return;
+	prnt_tkn(fp,u64_at(tkns,handle));
+	handle=handle+1;
+	goto header;
+end
 function tokenize(u64 str) u64 start
 	u64 tkns=empty_array();
 	u64 index_into_str=0;
 	u64 string_temp=empty_array();
 	u8 in_id=0;
-	u64 temp_tkn;
+	u8 in_number=0;
+	u8 in_comment=0;
+	u8 in_single_comment=0;
+	u8 in_str=0;
+	u8 in_escape=0;
+	u8 in_chr=0;
+	u8 allow_cont=0;
+	u64 current_number;
 	label iterate_over_string_header;
 	if(index_into_str==array_size(str)) goto after_iterate_over_string;
+		if(char_at(str,index_into_str)=='\n') start
+			allow_cont=0;
+			goto iterate_over_string_footer;
+		end
+		if(char_at(str,index_into_str)=='\t') start
+			allow_cont=0;
+			goto iterate_over_string_footer;
+		end
+		if(in_str) start
+			if(in_escape) start
+				if(char_at(str,index_into_str)=='n') start
+					append_chr(temp_string,'\n');
+					in_escape=0;
+					goto iterate_over_string_footer;
+				end
+				if(char_at(str,index_into_str)=='t') start
+					append_chr(temp_string,'\t');
+					in_escape=0;
+					goto iterate_over_string_footer;
+				end
+				if(char_at(str,index_into_str)=='\"') start
+					append_chr(temp_string,'\"');
+					in_escape=0;
+					goto iterate_over_string_footer;
+				end
+				if(char_at(str,index_into_str)=='\'') start
+					append_chr(temp_string,'\'');
+					in_escape=0;
+					goto iterate_over_string_footer;
+				end
+				if(char_at(str,index_into_str)=='\\') start
+					append_chr(temp_string,'\\');
+					in_escape=0;
+					goto iterate_over_string_footer;
+				end
+				if(char_at(str,index_into_str)=='e') start
+					append_chr(temp_string,27);
+					in_escape=0;
+					goto iterate_over_string_footer;
+				end
+				if(char_at(str,index_into_str)=='0') start
+					append_chr(temp_string,0);
+					in_escape=0;
+					goto iterate_over_string_footer;
+				end
+				in_escape=0;
+				goto iterate_over_string_footer;
+			end
+			if(char_at(str,index_into_str)=='\\') start
+				in_escape=1;
+				goto iterate_over_string_footer;
+			end
+			if(char_at(str,index_into_str)=='\"') start
+				in_str=0;
+				construct_tkn_in_place(tkns,tkn_type_str_op,temp_string);
+				temp_string=empty_array();
+				goto iterate_over_string_footer;
+			end
+			append_chr(temp_string,char_at(str,index_into_str));
+			goto iterate_over_string_footer;
+		end
+		if(in_chr) start
+			if(in_escape) start
+				if(char_at(str,index_into_str)=='n') start
+					append_chr(temp_string,'\n');
+					in_escape=0;
+					goto iterate_over_string_footer;
+				end
+				if(char_at(str,index_into_str)=='t') start
+					append_chr(temp_string,'\t');
+					in_escape=0;
+					goto iterate_over_string_footer;
+				end
+				if(char_at(str,index_into_str)=='\"') start
+					append_chr(temp_string,'\"');
+					in_escape=0;
+					goto iterate_over_string_footer;
+				end
+				if(char_at(str,index_into_str)=='\'') start
+					append_chr(temp_string,'\'');
+					in_escape=0;
+					goto iterate_over_string_footer;
+				end
+				if(char_at(str,index_into_str)=='\\') start
+					append_chr(temp_string,'\\');
+					in_escape=0;
+					goto iterate_over_string_footer;
+				end
+				if(char_at(str,index_into_str)=='e') start
+					append_chr(temp_string,27);
+					in_escape=0;
+					goto iterate_over_string_footer;
+				end
+				if(char_at(str,index_into_str)=='0') start
+					append_chr(temp_string,0);
+					in_escape=0;
+					goto iterate_over_string_footer;
+				end
+				in_escape=0;
+				goto iterate_over_string_footer;
+			end
+			if(char_at(str,index_into_str)=='\\') start
+				in_escape=1;
+				goto iterate_over_string_footer;
+			end
+			if(char_at(str,index_into_str)=='\'') start
+				in_chr=0;
+				construct_tkn_in_place(tkns,tkn_type_str_op,temp_string);
+				temp_string=empty_array();
+				goto iterate_over_string_footer;
+			end
+			append_chr(temp_string,char_at(str,index_into_str));
+			goto iterate_over_string_footer;
+		end
+		if(char_at(str,index_into_str)=='\'') start
+			in_chr=1;
+			allow_cont=0;
+			goto iterate_over_string_footer;
+		end
+		if(char_at(str,index_into_str)=='\"') start
+			in_str=1;
+			allow_cont=0;
+			goto iterate_over_string_footer;
+		end
+		if(char_at(str,index_into_str)==' ') start
+			allow_cont=0;
+			goto iterate_over_string_footer;
+		end
+		if(in_comment) start
+			if(char_at(str,index_into_str)=='}') in_comment=0;
+			goto iterate_over_string_footer;
+		end
+		if(in_single_comment) start
+			if(char_at(str,index_into_str)=='\n') in_single_comment=0;
+			goto iterate_over_string_footer;
+		end
+		if(char_at(str,index_into_str)=='!') start
+			if(allow_cont) start
+				if(&*((u64_at(tkns,array_size(tkns)-1)) as u64 &*)==tkn_type_and_bit) start
+					&*((u64_at(tkns,array_size(tkns)-1) as u64 &*)=tkn_type_not_log;
+					goto iterate_over_string_footer;
+				end
+			end
+			in_single_comment=1;
+			allow_cont=0;
+			goto iterate_over_string_footer;
+		end
+		if(char_at(str,index_into_str)=='{') start
+			in_comment=1;
+			allow_cont=0;
+			goto iterate_over_string_footer;
+		end
 		if(in_id) goto handle_id;
-		if((char_at(str,index_into_str)-'A')<26) goto handle_id_header;
-		if((char_at(str,index_into_str)-'a')<26) goto handle_id_header;
+		if(((char_at(str,index_into_str)-'A')<26)&&((char_at(str,index_into_str)-'A')>(-1))) goto handle_id_header;
+		if(((char_at(str,index_into_str)-'a')<26)&&((char_at(str,index_into_str)-'A')>(-1))) goto handle_id_header;
+		if(char_at(str,index_int_str)=='_') goto handle_id_header;
+		if(in_number) start
+			if(&!(((char_at(str,index_into_str)-'0')<10)&&((char_at(str,index_into_str)-'0')>(-1)))) start
+				index_into_string=index_into_string-1;
+				in_number=0;
+				construct_tkn_in_place(tkns,tkn_type_int_lit,current_number);
+				current_number=0;
+				goto iterate_over_string_footer;
+			end
+			current_number=(current_number*10)+(char_at(str,index_into_str)-'0');	
+			goto iterate_over_string_footer;
+		end
+		if(char_at(str,index_into_str)=='-') start
+			if(allow_cont) start
+				if(&*((u64_at(tkns,array_size(tkns)-1)) as u64 &*)==tkn_type_sub_op) start
+					&*((u64_at(tkns,array_size(tkns)-1)) as u64 &*)=tkn_type_dec_op;
+					goto iterate_over_string_footer;
+				end
+			end
+			construct_tkn_in_place(tkns,tkn_type_sub_op,0);
+			allow_cont=1;
+			goto iterate_over_string_footer;
+		end
+		if(char_at(str,index_into_str)=='+') start
+			if(allow_cont) start
+				if(&*((u64_at(tkns,array_size(tkns)-1)) as u64 &*)==tkn_type_add_op) start
+					&*((u64_at(tkns,array_size(tkns)-1) as u64 &*)=tkn_type_inc_op;
+					goto iterate_over_string_footer;
+				end
+			end
+			construct_tkn_in_place(tkns,tkn_type_add_op,0);
+			allow_cont=1;
+			goto iterate_over_string_footer;
+		end
+		if(char_at(str,index_into_str)=='&') start
+			if(allow_cont) start
+				if(&*((u64_at(tkns,array_size(tkns)-1)) as u64 &*)==tkn_type_and_bit) start
+					&*((u64_at(tkns,array_size(tkns)-1)) as u64 &*)=tkn_type_and_log;
+					goto iterate_over_string_footer;
+				end
+			end
+			construct_tkn_in_place(tkns,tkn_type_and_bit,0);
+			allow_cont=1;
+			goto iterate_over_string_footer;
+		end
+		if(char_at(str,index_into_str)=='*') start
+			if(allow_cont) start
+				if(&*((u64_at(tkns,array_size(tkns)-1)) as u64 &*)==tkn_type_and_bit) start
+					&*((u64_at(tkns,array_size(tkns)-1)) as u64 &*)=tkn_type_ptr_op;
+					goto iterate_over_string_footer;
+				end
+			end
+			construct_tkn_in_place(tkns,tkn_type_mul_op,0);
+			allow_cont=1;
+			goto iterate_over_string_footer;
+		end
+		if(char_at(str,index_into_str)=='=') start
+			if(allow_cont) start
+				if(&*((u64_at(tkns,array_size(tkns)-1)) as u64 &*)==tkn_type_ass) start
+					&*((u64_at(tkns,array_size(tkns)-1)) as u64 &*)=tkn_type_equ_op;
+					goto iterate_over_string_footer;
+				end
+			end
+			construct_tkn_in_place(tkns,tkn_type_ass,0);
+			allow_cont=1;
+			goto iterate_over_string_footer;
+		end
+		if(char_at(str,index_into_str)=='|') start
+			if(allow_cont) start
+				if(&*((u64_at(tkns,array_size(tkns)-1)) as u64 &*)==tkn_type_or_bit) start
+					&*((u64_at(tkns,array_size(tkns)-1)) as u64 &*)=tkn_type_or_log;
+					goto iterate_over_string_footer;
+				end
+			end
+			construct_tkn_in_place(tkns,tkn_type_or_bit,0);
+			allow_cont=1;
+			goto iterate_over_string_footer;
+		end
+		if(char_at(str,index_into_str)=='^') start
+			if(allow_cont) start
+				if(&*((u64_at(tkns,array_size(tkns)-1)) as u64 &*)==tkn_type_xor_bit) start
+					&*((u64_at(tkns,array_size(tkns)-1)) as u64 &*)=tkn_type_xor_log;
+					goto iterate_over_string_footer;
+				end
+			end
+			construct_tkn_in_place(tkns,tkn_type_xor_bit,0);
+			allow_cont=1;
+			goto iterate_over_string_footer;
+		end
+		if(char_at(str,index_into_str)=='~') start
+			construct_tkn_in_place(tkns,tkn_type_not_bit,0);
+			allow_cont=1;
+			goto iterate_over_string_footer;
+		end
+		if(char_at(str,index_into_str)=='(') start
+			construct_tkn_in_place(tkns,tkn_type_start_args,0);
+			allow_cont=0;
+			goto iterate_over_string_footer;
+		end
+		if(char_at(str,index_into_str)==')') start
+			construct_tkn_in_place(tkns,tkn_type_end_args,0);
+			allow_cont=0;
+			goto iterate_over_string_footer;
+		end
+		if(char_at(str,index_into_str)==',') start
+			construct_tkn_in_place(tkns,tkn_type_arg_sep,0);
+			allow_cont=0;
+			goto iterate_over_string_footer;
+		end
 	label iterate_over_string_footer;
 		index_into_str=index_into_str+1;
 		goto iterate_over_string_header;
@@ -508,13 +1153,30 @@ function tokenize(u64 str) u64 start
 		label handle_id;
 			if(char_at(str,index_into_str)==' ') goto id_check;
 			if(char_at(str,index_into_str)=='\n') goto id_check;
+			if(char_at(str,index_into_str)=='\t') goto_id_check;
 			if(char_at(str,index_into_str)=='*') goto id_ended_by_usable_symbol;
+			if(char_at(str,index_into_str)=='&') goto id_ended_by_usable_symbol;
+			if(char_at(str,index_into_str)=='(') goto id_ended_by_usable_symbol;
+			if(char_at(str,index_into_str)==')') goto id_ended_by_usable_symbol;
+			if(char_at(str,index_into_str)=='!') goto id_ended_by_usable_symbol;
+			if(char_at(str,index_into_str)=='%') goto id_ended_by_usable_symbol;
+			if(char_at(str,index_into_str)=='+') goto id_ended_by_usable_symbol;
+			if(char_at(str,index_into_str)=='-') goto id_ended_by_usable_symbol;
+			if(char_at(str,index_into_str)=='/') goto id_ended_by_usable_symbol;
+			if(char_at(str,index_into_str)=='~') goto id_ended_by_usable_symbol;
+			if(char_at(str,index_into_str)=='{') goto id_ended_by_usable_symbol;
+			if(char_at(str,index_into_str)=='!') goto id_ended_by_usable_symbol;
 			append_chr(string_temp,char_at(str,index_into_str));
 			goto iterate_over_string_footer;
 		label id_ended_by_usable_symbol;
 			index_into_str=index_into_str-1;
 		label id_check;
 			in_id=0;
+			if(cmp_str(string_temp,nop_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_nop,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
 			if(cmp_str(string_temp,if_tkn_str)==0) start
 				construct_tkn_in_place(tkns,tkn_type_if,0);
 				clr_array(string_temp);
@@ -540,14 +1202,136 @@ function tokenize(u64 str) u64 start
 				clr_array(string_temp);
 				goto iterate_over_string_footer;
 			end
-			construct_tkn_in_place(tkns,tkn_type_id,string_temp);
+			if(cmp_str(string_temp,class_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_class,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,open_class_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_open_class,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,struct_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_struct,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,function_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_function,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,procedure_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_procedure,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,as_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_as,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,program_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_program,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,operator_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_operator,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,embed_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_embed,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,construct_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_construct,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,destruct_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_destruct,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,typedef_tkn_str)==0) start
+				construct_tkn_str(tkns,tkn_type_typedef,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,let_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_let,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,enum_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_enum,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,union_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_union,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,tagged_union_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_tagged_union,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,goto_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_goto,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,label_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_label,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,while_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_while,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,for_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_for,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,until_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_until,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,jmp_table_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_jmp_table,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			if(cmp_str(string_temp,elf_tkn_str)==0) start
+				construct_tkn_in_place(tkns,tkn_type_elf,0);
+				clr_array(string_temp);
+				goto iterate_over_string_footer;
+			end
+			g_append_symbol(string_temp);
+			construct_tkn_in_place(tkns,tkn_type_id,g_find_symbolstring_temp));
 			string_temp=empty_array();
 			goto iterate_over_string_footer;
 	label after_iterate_over_string;
+	return tkns;
 end
 program start
+	if(argc<2) start
+		println("Input File Required",stdout);
+		return 1;
+	end
 	global_symbol_table=empty_array();
 	symbol_stack=empty_array();
+	nop_tkn_str=construct_str("nop");
 	if_tkn_str=construct_str("if");
 	else_tkn_str=construct_str("else");
 	return_tkn_str=construct_str("return");
@@ -569,4 +1353,11 @@ program start
 	enum_tkn_str=construct_str("enum");
 	union_tkn_str=construct_tkn("union");
 	tagged_union_tkn_str=construct_tkn_str("tagged_union");
+	goto_tkn_str=construct_str("goto");
+	label_tkn_str=construct_str("label");
+	while_tkn_str=construct_str("while");
+	for_tkn_str=construct_str("for");
+	until_tkn_str=construct_str("until");
+	jmp_table_tkn_str=construct_str("match");
+	elf_tkn_str=construct_str("elf");
 end
